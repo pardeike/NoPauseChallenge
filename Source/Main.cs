@@ -36,6 +36,7 @@ namespace NoPauseChallenge
 			var harmony = HarmonyInstance.Create("net.pardeike.harmony.NoPauseChallenge");
 			harmony.PatchAll();
 			AddUltraButton();
+			FireStats.Trigger(true);
 		}
 
 		static void AddUltraButton()
@@ -48,6 +49,16 @@ namespace NoPauseChallenge
 			var tex = ContentFinder<Texture2D>.Get("TimeSpeedButton_Ultrafast", true);
 			textures[4] = tex;
 			speedButtonTextures.SetValue(textures);
+		}
+	}
+
+	[HarmonyPatch(typeof(Game))]
+	[HarmonyPatch("FinalizeInit")]
+	static class Game_FinalizeInit_Patch
+	{
+		static void Postfix()
+		{
+			FireStats.Trigger(false);
 		}
 	}
 
