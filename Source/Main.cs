@@ -1,5 +1,6 @@
 ﻿using Harmony;
 using RimWorld;
+using RimWorld.Planet;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection.Emit;
@@ -11,7 +12,10 @@ namespace NoPauseChallenge
 	[StaticConstructorOnStartup]
 	public class Main
 	{
+		public static bool noPauseEnabled = false;
 		public static bool closeTradeDialog = false;
+		public static TimeSpeed lastTimeSpeed = TimeSpeed.Paused;
+		public static Texture2D[] originalSpeedButtonTextures;
 
 		public static readonly Texture2D[] SpeedButtonTextures = new Texture2D[]
 		{
@@ -32,11 +36,18 @@ namespace NoPauseChallenge
 
 		static Main()
 		{
-			//HarmonyInstance.DEBUG = true;
+			// HarmonyInstance.DEBUG = true;
 			var harmony = HarmonyInstance.Create("net.pardeike.harmony.NoPauseChallenge");
 			harmony.PatchAll();
 			AddUltraButton();
+			CopyOriginalSpeedButtonTextures();
 			FireStats.Trigger(true);
+		}
+
+		static void CopyOriginalSpeedButtonTextures()
+		{
+			var t_TexButton = AccessTools.TypeByName("Verse.TexButton");
+			originalSpeedButtonTextures = Traverse.Create(t_TexButton).Field("SpeedButtonTextures").GetValue<Texture2D[]>();
 		}
 
 		static void AddUltraButton()
@@ -52,13 +63,78 @@ namespace NoPauseChallenge
 		}
 	}
 
+	[HarmonyPatch(typeof(StorytellerUI))]
+	[HarmonyPatch("DrawStorytellerSelectionInterface")]
+	static class StorytellerUI_DrawStorytellerSelectionInterface_Patch
+	{
+		static void SetColorPlusOurUX(Color value, Listing_Standard infoListing)
+		{
+			GUI.color = value;
+			infoListing.Gap(3f);
+			infoListing.CheckboxLabeled("No Pause Challenge", ref Main.noPauseEnabled, null);
+			infoListing.Gap(3f);
+		}
+
+		static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+		{
+			var list = instructions.ToList();
+			var m_get_white = AccessTools.Property(typeof(Color), "white").GetGetMethod();
+			var m_set_color = AccessTools.Property(typeof(GUI), "color").GetSetMethod();
+			var idx = list.FirstIndexOf(instr => instr.opcode == OpCodes.Call && instr.operand == m_get_white);
+			if (idx < 0 || idx >= list.Count || list[idx + 1].opcode != OpCodes.Call || list[idx + 1].operand != m_set_color)
+				Log.Error("Cannot find first 'GUI.color = Color.white' in TimeControls.DoTimeControlsGUI");
+			else
+			{
+				list[idx + 1].operand = SymbolExtensions.GetMethodInfo(() => SetColorPlusOurUX(Color.clear, null));
+				list.Insert(idx + 1, new CodeInstruction(OpCodes.Ldarg_3));
+			}
+			return list;
+		}
+	}
+
+	[HarmonyPatch(typeof(CameraDriver))]
+	[HarmonyPatch("Expose")]
+	static class CameraDriver_Expose_Patch
+	{
+		static void Postfix()
+		{
+			try
+			{
+				Scribe_Values.Look(ref Main.noPauseEnabled, "noPause", false, false);
+			}
+			catch (System.Exception)
+			{
+				Main.noPauseEnabled = false;
+			}
+		}
+	}
+
 	[HarmonyPatch(typeof(Game))]
 	[HarmonyPatch("FinalizeInit")]
 	static class Game_FinalizeInit_Patch
 	{
 		static void Postfix()
 		{
-			FireStats.Trigger(false);
+			if (Main.noPauseEnabled)
+				FireStats.Trigger(false);
+		}
+	}
+
+	[HarmonyPatch(typeof(GameComponentUtility))]
+	[HarmonyPatch("LoadedGame")]
+	static class GameComponentUtility_LoadedGame_Patch
+	{
+		static void Postfix()
+		{
+			if (Main.noPauseEnabled == false)
+				return;
+
+			LongEventHandler.ExecuteWhenFinished(delegate
+			{
+				var tm = Find.TickManager;
+				if (tm.CurTimeSpeed == TimeSpeed.Paused)
+					tm.CurTimeSpeed = TimeSpeed.Normal;
+			});
 		}
 	}
 
@@ -68,7 +144,24 @@ namespace NoPauseChallenge
 	{
 		static bool Prefix(ref bool __result)
 		{
+			if (Main.noPauseEnabled == false)
+				return true;
+
 			__result = false;
+			return false;
+		}
+	}
+
+	[HarmonyPatch(typeof(WorldRoutePlanner))]
+	[HarmonyPatch("ShouldStop", MethodType.Getter)]
+	class WorldRoutePlanner_ShouldStop_Patch
+	{
+		static bool Prefix(bool ___active, ref bool __result)
+		{
+			if (Main.noPauseEnabled == false)
+				return true;
+
+			__result = !___active || !WorldRendererUtility.WorldRenderedNow;
 			return false;
 		}
 	}
@@ -79,6 +172,8 @@ namespace NoPauseChallenge
 	{
 		static bool Prefix(ref TimeSpeed value)
 		{
+			if (Main.noPauseEnabled == false)
+				return true;
 			return value != TimeSpeed.Paused;
 		}
 	}
@@ -89,7 +184,7 @@ namespace NoPauseChallenge
 	{
 		static bool Prefix()
 		{
-			return false;
+			return (Main.noPauseEnabled == false);
 		}
 	}
 
@@ -99,7 +194,7 @@ namespace NoPauseChallenge
 	{
 		static bool Prefix()
 		{
-			return false;
+			return (Main.noPauseEnabled == false);
 		}
 	}
 
@@ -109,7 +204,7 @@ namespace NoPauseChallenge
 	{
 		static bool Prefix()
 		{
-			return false;
+			return (Main.noPauseEnabled == false);
 		}
 	}
 
@@ -119,7 +214,8 @@ namespace NoPauseChallenge
 	{
 		static void Postfix()
 		{
-			Main.closeTradeDialog = true;
+			if (Main.noPauseEnabled)
+				Main.closeTradeDialog = true;
 		}
 	}
 
@@ -129,7 +225,8 @@ namespace NoPauseChallenge
 	{
 		static void Postfix()
 		{
-			Main.closeTradeDialog = false;
+			if (Main.noPauseEnabled)
+				Main.closeTradeDialog = false;
 		}
 	}
 
@@ -139,6 +236,9 @@ namespace NoPauseChallenge
 	{
 		static bool Prefix(Dialog_Trade __instance)
 		{
+			if (Main.noPauseEnabled == false)
+				return true;
+
 			/*var tradable = true;
 			if (TradeSession.Active == false)
 				tradable = false;
@@ -185,9 +285,27 @@ namespace NoPauseChallenge
 	{
 		static Texture2D GetButtonTexture(TimeSpeed timeSpeed, TimeSpeed current, TimeSpeed index)
 		{
+			if (Main.noPauseEnabled == false)
+				return Main.originalSpeedButtonTextures[(int)timeSpeed];
+
 			if (current == index)
 				return Main.SpeedButtonTexturesActive[(int)timeSpeed];
 			return Main.SpeedButtonTextures[(int)timeSpeed];
+		}
+
+		static int GetTimeSpeedVarValue(TimeSpeed timeSpeed)
+		{
+			return Main.noPauseEnabled ? -1 : (int)timeSpeed;
+		}
+
+		static int ConditionalLoopStart()
+		{
+			return Main.noPauseEnabled ? 1 : 0;
+		}
+
+		static int ConditionalUltaMultiplier()
+		{
+			return Main.noPauseEnabled ? 2 : 1;
 		}
 
 		static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
@@ -199,7 +317,10 @@ namespace NoPauseChallenge
 			if (idx < 0 || idx >= list.Count)
 				Log.Error("Cannot find Ldc_I4.0 in TimeControls.DoTimeControlsGUI");
 			else
-				list[idx].opcode = OpCodes.Ldc_I4_1;
+			{
+				list[idx].opcode = OpCodes.Call;
+				list[idx].operand = SymbolExtensions.GetMethodInfo(() => ConditionalLoopStart());
+			}
 
 			var f_HighlightTex = AccessTools.Field(typeof(TexUI), nameof(TexUI.HighlightTex));
 			var speedCompareOperands = new List<CodeInstruction>();
@@ -209,8 +330,7 @@ namespace NoPauseChallenge
 			else
 			{
 				speedCompareOperands = list.GetRange(idx, 3).Select(instr => instr.Clone()).ToList();
-				list[idx + 2].opcode = OpCodes.Ldc_I4;
-				list[idx + 2].operand = -1;
+				list.Insert(idx + 3, new CodeInstruction(OpCodes.Call, SymbolExtensions.GetMethodInfo(() => GetTimeSpeedVarValue(TimeSpeed.Normal))));
 			}
 
 			var t_TexButton = AccessTools.TypeByName("Verse.TexButton");
@@ -234,11 +354,42 @@ namespace NoPauseChallenge
 				Log.Error("Cannot find Ldc_I4.4 in TimeControls.DoTimeControlsGUI");
 			else
 			{
-				list[idx].opcode = OpCodes.Ldc_I4;
-				list[idx].operand = -1;
+				list.Insert(idx + 1, new CodeInstruction(OpCodes.Call, SymbolExtensions.GetMethodInfo(() => ConditionalUltaMultiplier())));
+				list.Insert(idx + 2, new CodeInstruction(OpCodes.Mul));
 			}
 
 			return list;
+		}
+
+		static void Prefix()
+		{
+			if (Main.noPauseEnabled == false)
+				return;
+
+			if (Event.current.type == EventType.KeyDown)
+			{
+				if (KeyBindingDefOf.TogglePause.KeyDownEvent)
+				{
+					var tm = Find.TickManager;
+					if (tm.CurTimeSpeed == TimeSpeed.Paused || Main.lastTimeSpeed == TimeSpeed.Paused)
+					{
+						tm.CurTimeSpeed = TimeSpeed.Normal;
+						Main.lastTimeSpeed = TimeSpeed.Normal;
+					}
+					else
+					{
+						if (tm.CurTimeSpeed == TimeSpeed.Normal)
+							tm.CurTimeSpeed = Main.lastTimeSpeed;
+						else
+						{
+							Main.lastTimeSpeed = tm.CurTimeSpeed;
+							tm.CurTimeSpeed = TimeSpeed.Normal;
+						}
+					}
+
+					Event.current.Use();
+				}
+			}
 		}
 	}
 }
