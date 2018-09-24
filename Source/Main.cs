@@ -41,7 +41,6 @@ namespace NoPauseChallenge
 			harmony.PatchAll();
 			AddUltraButton();
 			CopyOriginalSpeedButtonTextures();
-			FireStats.Trigger(true);
 		}
 
 		static void CopyOriginalSpeedButtonTextures()
@@ -116,7 +115,7 @@ namespace NoPauseChallenge
 		static void Postfix()
 		{
 			if (Main.noPauseEnabled)
-				FireStats.Trigger(false);
+				ModCounter.Trigger();
 		}
 	}
 
