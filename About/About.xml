@@ -1,9 +1,24 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <ModMetaData>
 	<name>No Pause Challenge</name>
 	<author>Andreas Pardeike</author>
 	<targetVersion>1.0.0</targetVersion>
-	<description>Removes the ability to pause the game and prevents slowdowns
+	<description>The No Pause Challenge mod removes the ability to pause the game and prevents slowdowns. As a result you are forced to play in realtime and you will never have the ability to stop the game at any time. Can you handle it?
+
+All dialogs that usually pause the game will not do so. Saving and trading is done in real time and you get 1x, 2x, 3x and even 4x as speed buttons and the pause button is gone.
+
+No Pause Challenge saves state with each game and can be activated in the Storyteller Dialog (even while in a game). This means you can keep the mod active and still choose which games to play with it, in new or in old games. The mod can be removed at any time without consequences.
+
+Also, the space bar toggles between current speed and 1x speed.
+
+If you like this mod, check out my other mods on steam:
+https://steamcommunity.com/id/brrainz/myworkshopfiles/
+
+Please consider supporting me on Patreon. It would mean a lot to me:
+https://www.patreon.com/bePatron?c=937205
+
+Powered by Harmony Patch Library
+
 Andreas Pardeike
 Email: andreas@pardeike.net
 Steam: pardeike

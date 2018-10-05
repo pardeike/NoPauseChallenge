@@ -2,7 +2,7 @@
 <ModSyncNinjaData>
   <ID>2e6082db-4478-1f14-e444-93a2bab3b6f1</ID>
   <ModName>No Pause Challenge</ModName>
-  <Version>0.9.1.0</Version>
+  <Version>0.9.2.0</Version>
   <SaveBreaking>False</SaveBreaking>
   <Host name="Github">
     <Owner>pardeike</Owner>
