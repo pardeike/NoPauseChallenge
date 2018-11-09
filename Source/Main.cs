@@ -13,6 +13,7 @@ namespace NoPauseChallenge
 	public class Main
 	{
 		public static bool noPauseEnabled = false;
+		public static bool fullPauseActive = false;
 		public static bool closeTradeDialog = false;
 		public static TimeSpeed lastTimeSpeed = TimeSpeed.Paused;
 		public static Texture2D[] originalSpeedButtonTextures;
@@ -143,6 +144,12 @@ namespace NoPauseChallenge
 	{
 		static bool Prefix(ref bool __result)
 		{
+			if (Main.fullPauseActive)
+			{
+				__result = true;
+				return false;
+			}
+
 			if (Main.noPauseEnabled == false)
 				return true;
 
@@ -166,8 +173,23 @@ namespace NoPauseChallenge
 	}
 
 	[HarmonyPatch(typeof(TickManager))]
+	[HarmonyPatch("CurTimeSpeed", MethodType.Getter)]
+	class TickManager_CurTimeSpeed_Getter_Patch
+	{
+		static bool Prefix(ref TimeSpeed __result)
+		{
+			if (Main.fullPauseActive)
+			{
+				__result = TimeSpeed.Paused;
+				return false;
+			}
+			return true;
+		}
+	}
+
+	[HarmonyPatch(typeof(TickManager))]
 	[HarmonyPatch("CurTimeSpeed", MethodType.Setter)]
-	class TickManager_CurTimeSpeed_Patch
+	class TickManager_CurTimeSpeed_Setter_Patch
 	{
 		static bool Prefix(ref TimeSpeed value)
 		{
@@ -183,6 +205,7 @@ namespace NoPauseChallenge
 	{
 		static bool Prefix()
 		{
+			if (Main.fullPauseActive) return false;
 			return (Main.noPauseEnabled == false);
 		}
 	}
@@ -278,6 +301,35 @@ namespace NoPauseChallenge
 		}
 	}
 
+	[HarmonyPatch(typeof(UIRoot_Play))]
+	[HarmonyPatch(nameof(UIRoot_Play.UIRootOnGUI))]
+	class UIRoot_Play_UIRootOnGUI_Patch
+	{
+		static bool EscapeKeyHandling()
+		{
+			if (Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.Escape)
+			{
+				Event.current.Use();
+				Main.fullPauseActive = !Main.fullPauseActive;
+			}
+			return Main.fullPauseActive;
+		}
+
+		static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator generator)
+		{
+			var label = generator.DefineLabel();
+			var list = instructions.ToList();
+			list[0].labels.Add(label);
+			list.InsertRange(0, new[]
+			{
+				new CodeInstruction(OpCodes.Call, SymbolExtensions.GetMethodInfo(() => EscapeKeyHandling())),
+				new CodeInstruction(OpCodes.Brfalse, label),
+				new CodeInstruction(OpCodes.Ret)
+			});
+			return list.AsEnumerable();
+		}
+	}
+
 	[HarmonyPatch(typeof(TimeControls))]
 	[HarmonyPatch("DoTimeControlsGUI")]
 	class TimeControls_DoTimeControlsGUI_Patch
@@ -360,10 +412,13 @@ namespace NoPauseChallenge
 			return list;
 		}
 
-		static void Prefix()
+		static bool Prefix()
 		{
+			if (Main.fullPauseActive)
+				return false;
+
 			if (Main.noPauseEnabled == false)
-				return;
+				return true;
 
 			if (Event.current.type == EventType.KeyDown)
 			{
@@ -389,6 +444,7 @@ namespace NoPauseChallenge
 					Event.current.Use();
 				}
 			}
+			return true;
 		}
 	}
 }
