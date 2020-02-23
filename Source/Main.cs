@@ -249,8 +249,12 @@ namespace NoPauseChallenge
 			if (window.GetType().Name.StartsWith("Dialog_") == false)
 				return;
 
-			if (Main.noPauseEnabled)
-				Find.TickManager.CurTimeSpeed = TimeSpeed.Normal;
+			if (Main.noPauseEnabled && Find.Maps != null)
+			{
+				var tm = Find.TickManager;
+				if (tm != null)
+					tm.CurTimeSpeed = TimeSpeed.Normal;
+			}
 		}
 	}
 
