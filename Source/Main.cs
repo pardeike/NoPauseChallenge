@@ -1,4 +1,4 @@
-﻿using Harmony;
+﻿using HarmonyLib;
 using RimWorld;
 using RimWorld.Planet;
 using System.Collections.Generic;
@@ -10,7 +10,7 @@ using Verse;
 namespace NoPauseChallenge
 {
 	[StaticConstructorOnStartup]
-	public class Main
+	public static class Main
 	{
 		public static bool noPauseEnabled = false;
 		public static bool fullPauseActive = false;
@@ -38,7 +38,7 @@ namespace NoPauseChallenge
 		static Main()
 		{
 			// HarmonyInstance.DEBUG = true;
-			var harmony = HarmonyInstance.Create("net.pardeike.harmony.NoPauseChallenge");
+			var harmony = new Harmony("net.pardeike.harmony.NoPauseChallenge");
 			harmony.PatchAll();
 			AddUltraButton();
 			CopyOriginalSpeedButtonTextures();
@@ -59,7 +59,7 @@ namespace NoPauseChallenge
 			var textures = speedButtonTextures.GetValue<Texture2D[]>();
 			var tex = ContentFinder<Texture2D>.Get("TimeSpeedButton_Ultrafast", true);
 			textures[4] = tex;
-			speedButtonTextures.SetValue(textures);
+			_ = speedButtonTextures.SetValue(textures);
 		}
 	}
 
@@ -75,13 +75,13 @@ namespace NoPauseChallenge
 			infoListing.Gap(3f);
 		}
 
-		static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+		public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
 		{
 			var list = instructions.ToList();
 			var m_get_white = AccessTools.Property(typeof(Color), "white").GetGetMethod();
 			var m_set_color = AccessTools.Property(typeof(GUI), "color").GetSetMethod();
-			var idx = list.FirstIndexOf(instr => instr.opcode == OpCodes.Call && instr.operand == m_get_white);
-			if (idx < 0 || idx >= list.Count || list[idx + 1].opcode != OpCodes.Call || list[idx + 1].operand != m_set_color)
+			var idx = list.FirstIndexOf(instr => instr.Calls(m_get_white));
+			if (idx < 0 || idx >= list.Count || list[idx + 1].opcode != OpCodes.Call || list[idx + 1].OperandIs(m_set_color) == false)
 				Log.Error("Cannot find first 'GUI.color = Color.white' in TimeControls.DoTimeControlsGUI");
 			else
 			{
@@ -96,7 +96,7 @@ namespace NoPauseChallenge
 	[HarmonyPatch("Expose")]
 	static class CameraDriver_Expose_Patch
 	{
-		static void Postfix()
+		public static void Postfix()
 		{
 			try
 			{
@@ -113,7 +113,7 @@ namespace NoPauseChallenge
 	[HarmonyPatch("FinalizeInit")]
 	static class Game_FinalizeInit_Patch
 	{
-		static void Postfix()
+		public static void Postfix()
 		{
 			if (Main.noPauseEnabled)
 				ModCounter.Trigger();
@@ -124,7 +124,7 @@ namespace NoPauseChallenge
 	[HarmonyPatch("LoadedGame")]
 	static class GameComponentUtility_LoadedGame_Patch
 	{
-		static void Postfix()
+		public static void Postfix()
 		{
 			if (Main.noPauseEnabled == false)
 				return;
@@ -142,7 +142,7 @@ namespace NoPauseChallenge
 	[HarmonyPatch("Paused", MethodType.Getter)]
 	class TickManager_Paused_Patch
 	{
-		static bool Prefix(ref bool __result)
+		public static bool Prefix(ref bool __result)
 		{
 			if (Main.fullPauseActive)
 			{
@@ -162,7 +162,7 @@ namespace NoPauseChallenge
 	[HarmonyPatch("ShouldStop", MethodType.Getter)]
 	class WorldRoutePlanner_ShouldStop_Patch
 	{
-		static bool Prefix(bool ___active, ref bool __result)
+		public static bool Prefix(bool ___active, ref bool __result)
 		{
 			if (Main.noPauseEnabled == false)
 				return true;
@@ -176,7 +176,7 @@ namespace NoPauseChallenge
 	[HarmonyPatch("CurTimeSpeed", MethodType.Getter)]
 	class TickManager_CurTimeSpeed_Getter_Patch
 	{
-		static bool Prefix(ref TimeSpeed __result)
+		public static bool Prefix(ref TimeSpeed __result)
 		{
 			if (Main.fullPauseActive)
 			{
@@ -191,7 +191,7 @@ namespace NoPauseChallenge
 	[HarmonyPatch("CurTimeSpeed", MethodType.Setter)]
 	class TickManager_CurTimeSpeed_Setter_Patch
 	{
-		static bool Prefix(ref TimeSpeed value)
+		public static bool Prefix(ref TimeSpeed value)
 		{
 			if (Main.noPauseEnabled == false)
 				return true;
@@ -203,7 +203,7 @@ namespace NoPauseChallenge
 	[HarmonyPatch("TogglePaused")]
 	class TickManager_TogglePaused_Patch
 	{
-		static bool Prefix()
+		public static bool Prefix()
 		{
 			if (Main.fullPauseActive) return false;
 			return (Main.noPauseEnabled == false);
@@ -214,7 +214,7 @@ namespace NoPauseChallenge
 	[HarmonyPatch("SignalForceNormalSpeed")]
 	class TimeSlower_SignalForceNormalSpeed_Patch
 	{
-		static bool Prefix()
+		public static bool Prefix()
 		{
 			return (Main.noPauseEnabled == false);
 		}
@@ -224,7 +224,7 @@ namespace NoPauseChallenge
 	[HarmonyPatch("SignalForceNormalSpeedShort")]
 	class TimeSlower_SignalForceNormalSpeedShort_Patch
 	{
-		static bool Prefix()
+		public static bool Prefix()
 		{
 			return (Main.noPauseEnabled == false);
 		}
@@ -234,7 +234,7 @@ namespace NoPauseChallenge
 	[HarmonyPatch("UpdateTraderDuty")]
 	class LordToil_ExitMapAndEscortCarriers_UpdateTraderDuty_Patch
 	{
-		static void Postfix()
+		public static void Postfix()
 		{
 			if (Main.noPauseEnabled)
 				Main.closeTradeDialog = true;
@@ -245,7 +245,7 @@ namespace NoPauseChallenge
 	[HarmonyPatch("PostOpen")]
 	class Dialog_Trade_PostOpen_Patch
 	{
-		static void Postfix()
+		public static void Postfix()
 		{
 			if (Main.noPauseEnabled)
 				Main.closeTradeDialog = false;
@@ -256,7 +256,7 @@ namespace NoPauseChallenge
 	[HarmonyPatch("DoWindowContents")]
 	class Dialog_Trade_DoWindowContents_Patch
 	{
-		static bool Prefix(Dialog_Trade __instance)
+		public static bool Prefix(Dialog_Trade __instance)
 		{
 			if (Main.noPauseEnabled == false)
 				return true;
@@ -292,7 +292,7 @@ namespace NoPauseChallenge
 			return false;
 		}
 
-		static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+		public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
 		{
 			bool _bool;
 			var from = SymbolExtensions.GetMethodInfo(() => new TradeDeal().TryExecute(out _bool));
@@ -315,7 +315,7 @@ namespace NoPauseChallenge
 			return Main.fullPauseActive;
 		}
 
-		static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator generator)
+		public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator generator)
 		{
 			var label = generator.DefineLabel();
 			var list = instructions.ToList();
@@ -359,7 +359,7 @@ namespace NoPauseChallenge
 			return Main.noPauseEnabled ? 2 : 1;
 		}
 
-		static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+		public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
 		{
 			var list = instructions.ToList();
 			int idx;
@@ -375,7 +375,7 @@ namespace NoPauseChallenge
 
 			var f_HighlightTex = AccessTools.Field(typeof(TexUI), nameof(TexUI.HighlightTex));
 			var speedCompareOperands = new List<CodeInstruction>();
-			idx = list.FirstIndexOf(instr => instr.opcode == OpCodes.Ldsfld && instr.operand == f_HighlightTex) - 5;
+			idx = list.FirstIndexOf(instr => instr.LoadsField(f_HighlightTex)) - 5;
 			if (idx < 0 || idx >= list.Count)
 				Log.Error("Cannot find Ldsfld TexUI.HighlightTex in TimeControls.DoTimeControlsGUI");
 			else
@@ -390,7 +390,7 @@ namespace NoPauseChallenge
 			var f_SpeedButtonTextures = AccessTools.Field(t_TexButton, "SpeedButtonTextures");
 			if (f_SpeedButtonTextures == null)
 				Log.Error("Cannot get TexButton.SpeedButtonTextures");
-			idx = list.FirstIndexOf(instr => instr.operand == f_SpeedButtonTextures);
+			idx = list.FirstIndexOf(instr => instr.OperandIs(f_SpeedButtonTextures));
 			if (idx < 0 || idx >= list.Count)
 				Log.Error("Cannot find operand TexButton.SpeedButtonTextures in TimeControls.DoTimeControlsGUI");
 			else
@@ -412,7 +412,7 @@ namespace NoPauseChallenge
 			return list;
 		}
 
-		static bool Prefix()
+		public static bool Prefix()
 		{
 			if (Main.fullPauseActive)
 				return false;
