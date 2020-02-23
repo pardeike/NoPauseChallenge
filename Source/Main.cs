@@ -37,7 +37,6 @@ namespace NoPauseChallenge
 
 		static Main()
 		{
-			// HarmonyInstance.DEBUG = true;
 			var harmony = new Harmony("net.pardeike.harmony.NoPauseChallenge");
 			harmony.PatchAll();
 			AddUltraButton();
@@ -238,6 +237,20 @@ namespace NoPauseChallenge
 		{
 			if (Main.noPauseEnabled)
 				Main.closeTradeDialog = true;
+		}
+	}
+
+	[HarmonyPatch(typeof(WindowStack))]
+	[HarmonyPatch(nameof(WindowStack.Add))]
+	class WindowStack_Add_Patch
+	{
+		public static void Postfix(Window window)
+		{
+			if (window.GetType().Name.StartsWith("Dialog_") == false)
+				return;
+
+			if (Main.noPauseEnabled)
+				Find.TickManager.CurTimeSpeed = TimeSpeed.Normal;
 		}
 	}
 
