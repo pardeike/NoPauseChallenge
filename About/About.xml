@@ -6,6 +6,14 @@
 		<li>1.0</li>
 		<li>1.1</li>
 	</supportedVersions>
+	<modDependencies>
+		<li>
+			<packageId>brrainz.harmony</packageId>
+			<displayName>Harmony</displayName>
+			<steamWorkshopUrl>steam://url/CommunityFilePage/2009463077</steamWorkshopUrl>
+			<downloadUrl>https://github.com/pardeike/HarmonyRimWorld/releases/latest</downloadUrl>
+		</li>
+	</modDependencies>
 	<packageId>brrainz.nopausechallenge</packageId>
 	<description>The No Pause Challenge mod removes the ability to pause the game and prevents slowdowns. As a result you are forced to play in realtime and you will never have the ability to stop the game at any time. Can you handle it?
 
@@ -18,8 +26,7 @@ Also, the space bar toggles between current speed and 1x speed.
 If you like this mod, check out my other mods on steam:
 https://steamcommunity.com/id/brrainz/myworkshopfiles/
 
-Please consider supporting me on Patreon. It would mean a lot to me:
-https://www.patreon.com/bePatron?c=937205
+Please consider supporting me on Patreon. It would mean a lot to me: https://www.patreon.com/bePatron?c=937205
 
 Powered by Harmony Patch Library
 
