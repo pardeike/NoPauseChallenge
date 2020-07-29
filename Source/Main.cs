@@ -3,6 +3,7 @@ using RimWorld;
 using RimWorld.Planet;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Reflection.Emit;
 using UnityEngine;
 using Verse;
@@ -62,14 +63,31 @@ namespace NoPauseChallenge
 		}
 	}
 
-	[HarmonyPatch(typeof(StorytellerUI))]
-	[HarmonyPatch("DrawStorytellerSelectionInterface")]
+	[HarmonyPatch]
 	static class StorytellerUI_DrawStorytellerSelectionInterface_Patch
 	{
-		static void SetColorPlusOurUX(Color value, Listing_Standard infoListing)
+		public static IEnumerable<MethodBase> TargetMethods()
 		{
-			GUI.color = value;
-			infoListing.Gap(3f);
+			var type = typeof(StorytellerUI);
+			var names = new[]
+			{
+				"DrawStorytellerSelectionInterface_NewTemp",
+				"DrawStorytellerSelectionInterface"
+			};
+			foreach (var name in names)
+			{
+				var method = AccessTools.Method(type, name);
+				if (method != null)
+				{
+					yield return method;
+					yield break;
+				}
+			}
+		}
+
+		static void AddCheckbox(Listing_Standard infoListing, float gap)
+		{
+			infoListing.Gap(gap);
 			infoListing.CheckboxLabeled("No Pause Challenge", ref Main.noPauseEnabled, null);
 			infoListing.Gap(3f);
 		}
@@ -77,15 +95,22 @@ namespace NoPauseChallenge
 		public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
 		{
 			var list = instructions.ToList();
-			var m_get_white = AccessTools.Property(typeof(Color), "white").GetGetMethod();
-			var m_set_color = AccessTools.Property(typeof(GUI), "color").GetSetMethod();
-			var idx = list.FirstIndexOf(instr => instr.Calls(m_get_white));
-			if (idx < 0 || idx >= list.Count || list[idx + 1].opcode != OpCodes.Call || list[idx + 1].OperandIs(m_set_color) == false)
-				Log.Error("Cannot find first 'GUI.color = Color.white' in TimeControls.DoTimeControlsGUI");
+			var m_get_ProgramState = AccessTools.PropertyGetter(typeof(Current), nameof(Current.ProgramState));
+			var m_Listing_Gap = AccessTools.Method(typeof(Listing), nameof(Listing.Gap));
+			var idx = list.FirstIndexOf(instr => instr.Calls(m_get_ProgramState));
+			var target = TargetMethods().First();
+			if (idx < 0 || idx >= list.Count)
+				Log.Error($"Cannot find Current.get_ProgramState in {target.DeclaringType.Name}.{target.Name}");
+			else if (list[idx + 1].Branches(out var label) == false)
+				Log.Error($"Cannot find branch in {target.DeclaringType.Name}.{target.Name}");
+			else if (list[idx + 3].opcode != OpCodes.Ldc_R4)
+				Log.Error($"Cannot find ldc.r4 in {target.DeclaringType.Name}.{target.Name}");
+			else if (list[idx + 4].Calls(m_Listing_Gap) == false)
+				Log.Error($"Cannot find CALL Listing.Gap in {target.DeclaringType.Name}.{target.Name}");
 			else
 			{
-				list[idx + 1].operand = SymbolExtensions.GetMethodInfo(() => SetColorPlusOurUX(Color.clear, null));
-				list.Insert(idx + 1, new CodeInstruction(OpCodes.Ldarg_3));
+				list[idx + 4].opcode = OpCodes.Call;
+				list[idx + 4].operand = SymbolExtensions.GetMethodInfo(() => AddCheckbox(default, 0));
 			}
 			return list;
 		}
