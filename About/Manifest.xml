@@ -15,6 +15,6 @@
   </loadBefore>
   <loadAfter>
   </loadAfter>
-  <manifestUri>https://raw.githubusercontent.com/pardeike/NoPauseChallenge/master/About/Manifest.xml</manifestUri>
+  <manifestUri>https://raw.githubusercontent.com/pardeike/NoPauseChallenge/master/latest/Manifest.xml</manifestUri>
   <downloadUri>https://github.com/pardeike/NoPauseChallenge/releases/latest</downloadUri>
 </Manifest>
