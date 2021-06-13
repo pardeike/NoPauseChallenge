@@ -46,20 +46,12 @@ namespace NoPauseChallenge
 
 		static void CopyOriginalSpeedButtonTextures()
 		{
-			var t_TexButton = AccessTools.TypeByName("Verse.TexButton");
-			originalSpeedButtonTextures = Traverse.Create(t_TexButton).Field("SpeedButtonTextures").GetValue<Texture2D[]>();
+			originalSpeedButtonTextures = TexButton.SpeedButtonTextures;
 		}
 
 		static void AddUltraButton()
 		{
-			var texButtonClass = AccessTools.TypeByName("Verse.TexButton");
-			if (texButtonClass == null)
-				Log.Error("Cannot get Verse.TexButton");
-			var speedButtonTextures = Traverse.Create(texButtonClass).Field("SpeedButtonTextures");
-			var textures = speedButtonTextures.GetValue<Texture2D[]>();
-			var tex = ContentFinder<Texture2D>.Get("TimeSpeedButton_Ultrafast", true);
-			textures[4] = tex;
-			_ = speedButtonTextures.SetValue(textures);
+			TexButton.SpeedButtonTextures[4] = ContentFinder<Texture2D>.Get("TimeSpeedButton_Ultrafast", true);
 		}
 	}
 
