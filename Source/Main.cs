@@ -3,7 +3,6 @@ using RimWorld;
 using RimWorld.Planet;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System.Reflection.Emit;
 using UnityEngine;
 using Verse;
@@ -55,28 +54,9 @@ namespace NoPauseChallenge
 		}
 	}
 
-	[HarmonyPatch]
+	[HarmonyPatch(typeof(StorytellerUI), nameof(StorytellerUI.DrawStorytellerSelectionInterface))]
 	static class StorytellerUI_DrawStorytellerSelectionInterface_Patch
 	{
-		public static IEnumerable<MethodBase> TargetMethods()
-		{
-			var type = typeof(StorytellerUI);
-			var names = new[]
-			{
-				"DrawStorytellerSelectionInterface_NewTemp",
-				"DrawStorytellerSelectionInterface"
-			};
-			foreach (var name in names)
-			{
-				var method = AccessTools.Method(type, name);
-				if (method != null)
-				{
-					yield return method;
-					yield break;
-				}
-			}
-		}
-
 		static void AddCheckbox(Listing_Standard infoListing, float gap)
 		{
 			infoListing.Gap(gap);
@@ -90,15 +70,14 @@ namespace NoPauseChallenge
 			var m_get_ProgramState = AccessTools.PropertyGetter(typeof(Current), nameof(Current.ProgramState));
 			var m_Listing_Gap = AccessTools.Method(typeof(Listing), nameof(Listing.Gap));
 			var idx = list.FirstIndexOf(instr => instr.Calls(m_get_ProgramState));
-			var target = TargetMethods().First();
 			if (idx < 0 || idx >= list.Count)
-				Log.Error($"Cannot find Current.get_ProgramState in {target.DeclaringType.Name}.{target.Name}");
+				Log.Error($"Cannot find Current.get_ProgramState in DrawStorytellerSelectionInterface");
 			else if (list[idx + 1].Branches(out var label) == false)
-				Log.Error($"Cannot find branch in {target.DeclaringType.Name}.{target.Name}");
+				Log.Error($"Cannot find branch in DrawStorytellerSelectionInterface");
 			else if (list[idx + 3].opcode != OpCodes.Ldc_R4)
-				Log.Error($"Cannot find ldc.r4 in {target.DeclaringType.Name}.{target.Name}");
+				Log.Error($"Cannot find ldc.r4 in DrawStorytellerSelectionInterface");
 			else if (list[idx + 4].Calls(m_Listing_Gap) == false)
-				Log.Error($"Cannot find CALL Listing.Gap in {target.DeclaringType.Name}.{target.Name}");
+				Log.Error($"Cannot find CALL Listing.Gap in DrawStorytellerSelectionInterface");
 			else
 			{
 				list[idx + 4].opcode = OpCodes.Call;
@@ -108,8 +87,7 @@ namespace NoPauseChallenge
 		}
 	}
 
-	[HarmonyPatch(typeof(CameraDriver))]
-	[HarmonyPatch("Expose")]
+	[HarmonyPatch(typeof(CameraDriver), nameof(CameraDriver.Expose))]
 	static class CameraDriver_Expose_Patch
 	{
 		public static void Postfix()
@@ -125,8 +103,7 @@ namespace NoPauseChallenge
 		}
 	}
 
-	[HarmonyPatch(typeof(Game))]
-	[HarmonyPatch("FinalizeInit")]
+	[HarmonyPatch(typeof(Game), nameof(Game.FinalizeInit))]
 	static class Game_FinalizeInit_Patch
 	{
 		public static void Postfix()
@@ -136,8 +113,7 @@ namespace NoPauseChallenge
 		}
 	}
 
-	[HarmonyPatch(typeof(GameComponentUtility))]
-	[HarmonyPatch("LoadedGame")]
+	[HarmonyPatch(typeof(GameComponentUtility), nameof(GameComponentUtility.LoadedGame))]
 	static class GameComponentUtility_LoadedGame_Patch
 	{
 		public static void Postfix()
@@ -154,8 +130,7 @@ namespace NoPauseChallenge
 		}
 	}
 
-	[HarmonyPatch(typeof(TickManager))]
-	[HarmonyPatch("Paused", MethodType.Getter)]
+	[HarmonyPatch(typeof(TickManager), nameof(TickManager.Paused), MethodType.Getter)]
 	class TickManager_Paused_Patch
 	{
 		public static bool Prefix(ref bool __result)
@@ -174,8 +149,7 @@ namespace NoPauseChallenge
 		}
 	}
 
-	[HarmonyPatch(typeof(WorldRoutePlanner))]
-	[HarmonyPatch("ShouldStop", MethodType.Getter)]
+	[HarmonyPatch(typeof(WorldRoutePlanner), nameof(WorldRoutePlanner.ShouldStop), MethodType.Getter)]
 	class WorldRoutePlanner_ShouldStop_Patch
 	{
 		public static bool Prefix(bool ___active, ref bool __result)
@@ -188,8 +162,7 @@ namespace NoPauseChallenge
 		}
 	}
 
-	[HarmonyPatch(typeof(TickManager))]
-	[HarmonyPatch("CurTimeSpeed", MethodType.Getter)]
+	[HarmonyPatch(typeof(TickManager), nameof(TickManager.CurTimeSpeed), MethodType.Getter)]
 	class TickManager_CurTimeSpeed_Getter_Patch
 	{
 		public static bool Prefix(ref TimeSpeed __result)
@@ -203,8 +176,7 @@ namespace NoPauseChallenge
 		}
 	}
 
-	[HarmonyPatch(typeof(TickManager))]
-	[HarmonyPatch("CurTimeSpeed", MethodType.Setter)]
+	[HarmonyPatch(typeof(TickManager), nameof(TickManager.CurTimeSpeed), MethodType.Setter)]
 	class TickManager_CurTimeSpeed_Setter_Patch
 	{
 		public static bool Prefix(ref TimeSpeed value)
@@ -215,8 +187,7 @@ namespace NoPauseChallenge
 		}
 	}
 
-	[HarmonyPatch(typeof(TickManager))]
-	[HarmonyPatch("TogglePaused")]
+	[HarmonyPatch(typeof(TickManager), nameof(TickManager.TogglePaused))]
 	class TickManager_TogglePaused_Patch
 	{
 		public static bool Prefix()
@@ -226,8 +197,7 @@ namespace NoPauseChallenge
 		}
 	}
 
-	[HarmonyPatch(typeof(TimeSlower))]
-	[HarmonyPatch("SignalForceNormalSpeed")]
+	[HarmonyPatch(typeof(TimeSlower), nameof(TimeSlower.SignalForceNormalSpeed))]
 	class TimeSlower_SignalForceNormalSpeed_Patch
 	{
 		public static bool Prefix()
@@ -236,8 +206,7 @@ namespace NoPauseChallenge
 		}
 	}
 
-	[HarmonyPatch(typeof(TimeSlower))]
-	[HarmonyPatch("SignalForceNormalSpeedShort")]
+	[HarmonyPatch(typeof(TimeSlower), nameof(TimeSlower.SignalForceNormalSpeedShort))]
 	class TimeSlower_SignalForceNormalSpeedShort_Patch
 	{
 		public static bool Prefix()
@@ -246,8 +215,7 @@ namespace NoPauseChallenge
 		}
 	}
 
-	[HarmonyPatch(typeof(LordToil_ExitMapAndEscortCarriers))]
-	[HarmonyPatch("UpdateTraderDuty")]
+	[HarmonyPatch(typeof(LordToil_ExitMapAndEscortCarriers), nameof(LordToil_ExitMapAndEscortCarriers.UpdateTraderDuty))]
 	class LordToil_ExitMapAndEscortCarriers_UpdateTraderDuty_Patch
 	{
 		public static void Postfix()
@@ -257,8 +225,7 @@ namespace NoPauseChallenge
 		}
 	}
 
-	[HarmonyPatch(typeof(WindowStack))]
-	[HarmonyPatch(nameof(WindowStack.Add))]
+	[HarmonyPatch(typeof(WindowStack), nameof(WindowStack.Add))]
 	class WindowStack_Add_Patch
 	{
 		public static void Postfix(Window window)
@@ -275,8 +242,7 @@ namespace NoPauseChallenge
 		}
 	}
 
-	[HarmonyPatch(typeof(Dialog_Trade))]
-	[HarmonyPatch("PostOpen")]
+	[HarmonyPatch(typeof(Dialog_Trade), nameof(Dialog_Trade.PostOpen))]
 	class Dialog_Trade_PostOpen_Patch
 	{
 		public static void Postfix()
@@ -286,8 +252,7 @@ namespace NoPauseChallenge
 		}
 	}
 
-	[HarmonyPatch(typeof(Dialog_Trade))]
-	[HarmonyPatch("DoWindowContents")]
+	[HarmonyPatch(typeof(Dialog_Trade), nameof(Dialog_Trade.DoWindowContents))]
 	class Dialog_Trade_DoWindowContents_Patch
 	{
 		public static bool Prefix(Dialog_Trade __instance)
@@ -335,8 +300,7 @@ namespace NoPauseChallenge
 		}
 	}
 
-	[HarmonyPatch(typeof(UIRoot_Play))]
-	[HarmonyPatch(nameof(UIRoot_Play.UIRootOnGUI))]
+	[HarmonyPatch(typeof(UIRoot_Play), nameof(UIRoot_Play.UIRootOnGUI))]
 	class UIRoot_Play_UIRootOnGUI_Patch
 	{
 		static bool EscapeKeyHandling()
@@ -364,8 +328,7 @@ namespace NoPauseChallenge
 		}
 	}
 
-	[HarmonyPatch(typeof(TimeControls))]
-	[HarmonyPatch("DoTimeControlsGUI")]
+	[HarmonyPatch(typeof(TimeControls), nameof(TimeControls.DoTimeControlsGUI))]
 	class TimeControls_DoTimeControlsGUI_Patch
 	{
 		static Texture2D GetButtonTexture(TimeSpeed timeSpeed, TimeSpeed current, TimeSpeed index)
@@ -418,12 +381,7 @@ namespace NoPauseChallenge
 				list.Insert(idx + 3, new CodeInstruction(OpCodes.Call, SymbolExtensions.GetMethodInfo(() => GetTimeSpeedVarValue(TimeSpeed.Normal))));
 			}
 
-			var t_TexButton = AccessTools.TypeByName("Verse.TexButton");
-			if (t_TexButton == null)
-				Log.Error("Cannot get Verse.TexButton");
-			var f_SpeedButtonTextures = AccessTools.Field(t_TexButton, "SpeedButtonTextures");
-			if (f_SpeedButtonTextures == null)
-				Log.Error("Cannot get TexButton.SpeedButtonTextures");
+			var f_SpeedButtonTextures = AccessTools.Field(typeof(TexButton), nameof(TexButton.SpeedButtonTextures));
 			idx = list.FirstIndexOf(instr => instr.OperandIs(f_SpeedButtonTextures));
 			if (idx < 0 || idx >= list.Count)
 				Log.Error("Cannot find operand TexButton.SpeedButtonTextures in TimeControls.DoTimeControlsGUI");
