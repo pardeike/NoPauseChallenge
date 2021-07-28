@@ -103,16 +103,6 @@ namespace NoPauseChallenge
 		}
 	}
 
-	[HarmonyPatch(typeof(Game), nameof(Game.FinalizeInit))]
-	static class Game_FinalizeInit_Patch
-	{
-		public static void Postfix()
-		{
-			if (Main.noPauseEnabled)
-				ModCounter.Trigger();
-		}
-	}
-
 	[HarmonyPatch(typeof(GameComponentUtility), nameof(GameComponentUtility.LoadedGame))]
 	static class GameComponentUtility_LoadedGame_Patch
 	{
