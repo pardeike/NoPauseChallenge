@@ -1,4 +1,5 @@
-﻿using HarmonyLib;
+﻿using Brrainz;
+using HarmonyLib;
 using RimWorld;
 using RimWorld.Planet;
 using System.Collections.Generic;
@@ -41,6 +42,8 @@ namespace NoPauseChallenge
 			harmony.PatchAll();
 			AddUltraButton();
 			CopyOriginalSpeedButtonTextures();
+
+			CrossPromotion.Install(76561197973010050);
 		}
 
 		static void CopyOriginalSpeedButtonTextures()
