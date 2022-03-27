@@ -10,11 +10,19 @@ using Verse;
 
 namespace NoPauseChallenge
 {
+	[DefOf]
+	public static class Defs
+	{
+		public static KeyBindingDef HalfSpeed;
+	}
+
 	[StaticConstructorOnStartup]
 	public static class Main
 	{
 		public static bool noPauseEnabled = false;
+		public static bool halfSpeedEnabled = false;
 		public static bool fullPauseActive = false;
+		public static bool halfSpeedActive = false;
 		public static bool closeTradeDialog = false;
 		public static TimeSpeed lastTimeSpeed = TimeSpeed.Paused;
 		public static Texture2D[] originalSpeedButtonTextures;
@@ -26,6 +34,14 @@ namespace NoPauseChallenge
 			ContentFinder<Texture2D>.Get("TimeSpeedButton_Fast", true),
 			ContentFinder<Texture2D>.Get("TimeSpeedButton_Superfast", true),
 			ContentFinder<Texture2D>.Get("TimeSpeedButton_Ultrafast", true)
+		};
+		public static readonly Texture2D[] SpeedButtonTexturesHalf = new Texture2D[]
+		{
+			ContentFinder<Texture2D>.Get("TimeSpeedButton_Pause_Half", true),
+			ContentFinder<Texture2D>.Get("TimeSpeedButton_Normal_Half", true),
+			ContentFinder<Texture2D>.Get("TimeSpeedButton_Fast_Half", true),
+			ContentFinder<Texture2D>.Get("TimeSpeedButton_Superfast_Half", true),
+			ContentFinder<Texture2D>.Get("TimeSpeedButton_Ultrafast_Half", true)
 		};
 		public static readonly Texture2D[] SpeedButtonTexturesActive = new Texture2D[]
 		{
@@ -64,7 +80,10 @@ namespace NoPauseChallenge
 		{
 			infoListing.Gap(gap);
 			infoListing.CheckboxLabeled("No Pause Challenge", ref Main.noPauseEnabled, null);
+			infoListing.CheckboxLabeled("Half Speed enabled", ref Main.halfSpeedEnabled, null);
 			infoListing.Gap(3f);
+
+			Main.halfSpeedActive = false;
 		}
 
 		public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
@@ -98,10 +117,12 @@ namespace NoPauseChallenge
 			try
 			{
 				Scribe_Values.Look(ref Main.noPauseEnabled, "noPause", false, false);
+				Scribe_Values.Look(ref Main.halfSpeedEnabled, "halfSpeed", false, false);
 			}
 			catch (System.Exception)
 			{
 				Main.noPauseEnabled = false;
+				Main.halfSpeedEnabled = false;
 			}
 		}
 	}
@@ -120,6 +141,16 @@ namespace NoPauseChallenge
 				if (tm.CurTimeSpeed == TimeSpeed.Paused)
 					tm.CurTimeSpeed = TimeSpeed.Normal;
 			});
+		}
+	}
+
+	[HarmonyPatch(typeof(TickManager), nameof(TickManager.TickRateMultiplier), MethodType.Getter)]
+	class TickManager_TickRateMultiplier_Patch
+	{
+		public static void Postfix(ref float __result)
+		{
+			if (Main.halfSpeedActive)
+				__result /= 4f;
 		}
 	}
 
@@ -319,6 +350,17 @@ namespace NoPauseChallenge
 			});
 			return list.AsEnumerable();
 		}
+
+		public static void Postfix()
+		{
+			if (Main.halfSpeedEnabled == false) return;
+			if (Event.current.type != EventType.KeyDown) return;
+			if (Defs.HalfSpeed.KeyDownEvent)
+			{
+				Main.halfSpeedActive = !Main.halfSpeedActive;
+				TimeControls.PlaySoundOf(Find.TickManager.CurTimeSpeed);
+			}
+		}
 	}
 
 	[HarmonyPatch(typeof(TimeControls), nameof(TimeControls.DoTimeControlsGUI))]
@@ -326,11 +368,16 @@ namespace NoPauseChallenge
 	{
 		static Texture2D GetButtonTexture(TimeSpeed timeSpeed, TimeSpeed current, TimeSpeed index)
 		{
-			if (Main.noPauseEnabled == false)
+			if (Main.noPauseEnabled == false && Main.halfSpeedEnabled == false)
 				return Main.originalSpeedButtonTextures[(int)timeSpeed];
 
 			if (current == index)
-				return Main.SpeedButtonTexturesActive[(int)timeSpeed];
+			{
+				if (Main.halfSpeedActive)
+					return Main.SpeedButtonTexturesHalf[(int)timeSpeed];
+				else
+					return Main.SpeedButtonTexturesActive[(int)timeSpeed];
+			}
 			return Main.SpeedButtonTextures[(int)timeSpeed];
 		}
 

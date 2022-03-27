@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<Defs>
+	<KeyBindingCategoryDef>
+		<defName>NoPauseChallenge</defName>
+		<label>No Pause Challenge</label>
+		<description>No Pause Challenge Keys</description>
+	</KeyBindingCategoryDef>
+	<KeyBindingDef>
+		<category>NoPauseChallenge</category>
+		<defName>HalfSpeed</defName>
+		<label>Toggle Half Speed</label>
+		<defaultKeyCodeA>Alpha5</defaultKeyCodeA>
+	</KeyBindingDef>
+</Defs>
