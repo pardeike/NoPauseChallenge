@@ -226,7 +226,12 @@ namespace NoPauseChallenge
 	{
 		public static bool Prefix()
 		{
-			return (Main.noPauseEnabled == false);
+			if (Main.noPauseEnabled) {
+				var tm = Find.TickManager;
+				tm.CurTimeSpeed = TimeSpeed.Normal;
+				return false;
+			}
+			else return true;
 		}
 	}
 
@@ -235,7 +240,13 @@ namespace NoPauseChallenge
 	{
 		public static bool Prefix()
 		{
-			return (Main.noPauseEnabled == false);
+			if (Main.noPauseEnabled)
+			{
+				var tm = Find.TickManager;
+				tm.CurTimeSpeed = TimeSpeed.Normal;
+				return false;
+			}
+			else return true;
 		}
 	}
 
