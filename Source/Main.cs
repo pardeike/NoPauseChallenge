@@ -21,6 +21,7 @@ namespace NoPauseChallenge
 	{
 		public static bool noPauseEnabled = false;
 		public static bool halfSpeedEnabled = false;
+		public static bool eventSpeedEnabled = false;
 		public static bool fullPauseActive = false;
 		public static bool halfSpeedActive = false;
 		public static bool closeTradeDialog = false;
@@ -81,6 +82,7 @@ namespace NoPauseChallenge
 			infoListing.Gap(gap);
 			infoListing.CheckboxLabeled("No Pause Challenge", ref Main.noPauseEnabled, null);
 			infoListing.CheckboxLabeled("Half Speed enabled", ref Main.halfSpeedEnabled, null);
+			infoListing.CheckboxLabeled("1x On Event", ref Main.eventSpeedEnabled, null);
 			infoListing.Gap(3f);
 
 			Main.halfSpeedActive = false;
@@ -118,11 +120,13 @@ namespace NoPauseChallenge
 			{
 				Scribe_Values.Look(ref Main.noPauseEnabled, "noPause", false, false);
 				Scribe_Values.Look(ref Main.halfSpeedEnabled, "halfSpeed", false, false);
+				Scribe_Values.Look(ref Main.eventSpeedEnabled, "eventSpeed", false, false);
 			}
 			catch (System.Exception)
 			{
 				Main.noPauseEnabled = false;
 				Main.halfSpeedEnabled = false;
+				Main.eventSpeedEnabled = false;
 			}
 		}
 	}
@@ -226,6 +230,7 @@ namespace NoPauseChallenge
 	{
 		public static bool Prefix()
 		{
+			if (Main.eventSpeedEnabled) return true;
 			return (Main.noPauseEnabled == false);
 		}
 	}
@@ -235,6 +240,7 @@ namespace NoPauseChallenge
 	{
 		public static bool Prefix()
 		{
+			if (Main.eventSpeedEnabled) return true;
 			return (Main.noPauseEnabled == false);
 		}
 	}
