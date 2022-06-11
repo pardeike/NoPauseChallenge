@@ -511,6 +511,17 @@ namespace NoPauseChallenge
 		}
 	}
 
+	[HarmonyPatch(typeof(TimeSlower), nameof(TimeSlower.ForcedNormalSpeed), MethodType.Getter)]
+	class TimeSlower_ForcedNormalSpeed
+    {
+		public static bool Prefix(bool __result)
+        {
+			// Always block forced normal speed, skip the original method call
+			__result = false;
+			return false;
+        }
+    }
+
 	[HarmonyPatch(typeof(TimeControls), nameof(TimeControls.DoTimeControlsGUI))]
 	class TimeControls_DoTimeControlsGUI_Patch
 	{
