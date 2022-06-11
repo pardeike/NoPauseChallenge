@@ -2,6 +2,7 @@
 using HarmonyLib;
 using RimWorld;
 using RimWorld.Planet;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection.Emit;
@@ -21,9 +22,19 @@ namespace NoPauseChallenge
 	{
 		public static bool noPauseEnabled = false;
 		public static bool halfSpeedEnabled = false;
+		public static bool eventSpeedActive = false;
 		public static bool fullPauseActive = false;
 		public static bool halfSpeedActive = false;
 		public static bool closeTradeDialog = false;
+
+		// Flags for different time slow events
+		public static bool slowOnRaid = true;
+		public static bool slowOnCaravan = true;
+		public static bool slowOnLetter = false;
+		public static bool slowOnDamage = false;
+		public static bool slowOnEnemyApproach = false;
+		public static bool slowOnPrisonBreak = true;
+
 		public static TimeSpeed lastTimeSpeed = TimeSpeed.Paused;
 		public static Texture2D[] originalSpeedButtonTextures;
 
@@ -70,6 +81,18 @@ namespace NoPauseChallenge
 		static void AddUltraButton()
 		{
 			TexButton.SpeedButtonTextures[4] = ContentFinder<Texture2D>.Get("TimeSpeedButton_Ultrafast", true);
+		}
+
+		public static bool ModifyGameSpeed()
+        {
+			if (noPauseEnabled && eventSpeedActive)
+			{
+				var tm = Find.TickManager;
+				tm.CurTimeSpeed = TimeSpeed.Normal;
+				eventSpeedActive = false;
+				return false;
+			}
+			else return true;
 		}
 	}
 
@@ -221,17 +244,137 @@ namespace NoPauseChallenge
 		}
 	}
 
+	[HarmonyPatch(typeof(IncidentWorker_RaidEnemy), nameof(IncidentWorker_RaidEnemy.TryExecuteWorker))]
+	class IncidentWorker_RaidEnemy_TryExecuteWorker
+	{
+		public static bool Prefix()
+		{
+			if (Main.slowOnRaid) Main.eventSpeedActive = true;
+
+			return true;
+		}
+	}
+
+	[HarmonyPatch(typeof(IncidentWorker_Infestation), nameof(IncidentWorker_Infestation.TryExecuteWorker))]
+	class IncidentWorker_Infestation_TryExecuteWorker
+	{
+		public static bool Prefix()
+		{
+			if (Main.slowOnRaid) Main.eventSpeedActive = true;
+
+			return true;
+		}
+	}
+
+	[HarmonyPatch(typeof(IncidentWorker_ManhunterPack), nameof(IncidentWorker_ManhunterPack.TryExecuteWorker))]
+	class IncidentWorker_ManhunterPack_TryExecuteWorker
+	{
+		public static bool Prefix()
+		{
+			if (Main.slowOnRaid) Main.eventSpeedActive = true;
+
+			return true;
+		}
+	}
+
+	[HarmonyPatch(typeof(DamageWorker_Flame), nameof(DamageWorker.Apply))]
+	class DamageWorker_Flame_Apply
+	{
+		public static bool Prefix()
+		{
+			if (Main.slowOnDamage) Main.eventSpeedActive = true;
+
+			return true;
+		}
+	}
+
+	[HarmonyPatch(typeof(LetterStack), nameof(LetterStack.ReceiveLetter),
+		new Type[] { typeof(Letter), typeof(string) })]
+	class LetterStack_ReceiveLetter
+	{
+		public static bool Prefix()
+		{
+			if (Main.slowOnLetter) Main.eventSpeedActive = true;
+
+			return true;
+		}
+	}
+
+	[HarmonyPatch(typeof(TickManager), nameof(TickManager.Notify_GeneratedPotentiallyHostileMap))]
+	class TickManager_Notify_GeneratedPotentiallyHostileMap
+	{
+		public static bool Prefix()
+		{
+			if (Main.slowOnCaravan) Main.eventSpeedActive = true;
+
+			return true;
+		}
+	}
+
+	[HarmonyPatch(typeof(JobGiver_AIFightEnemy), nameof(JobGiver_AIFightEnemy.UpdateEnemyTarget))]
+	class JobGiver_AIFightEnemy_UpdateEnemyTarget
+	{
+		public static bool Prefix()
+		{
+			if (Main.slowOnEnemyApproach) Main.eventSpeedActive = true;
+
+			return true;
+		}
+	}
+
+	[HarmonyPatch(typeof(JobGiver_PrisonerEscape), nameof(JobGiver_PrisonerEscape.TryGiveJob))]
+	class JobGiver_PrisonerEscape_TryGiveJob
+	{
+		public static bool Prefix()
+		{
+			if (Main.slowOnPrisonBreak) Main.eventSpeedActive = true;
+
+			return true;
+		}
+	}
+
+    [HarmonyPatch(typeof(PrisonBreakUtility), nameof(PrisonBreakUtility.StartPrisonBreak),
+        new Type[] { typeof(Pawn), typeof(string), typeof(string), typeof(LetterDef) },
+		new ArgumentType[] { ArgumentType.Normal, ArgumentType.Out, ArgumentType.Out, ArgumentType.Out })]
+    class PrisonBreakUtility_StartPrisonBreak
+    {
+        public static bool Prefix()
+        {
+            if (Main.slowOnPrisonBreak) Main.eventSpeedActive = true;
+
+            return true;
+        }
+    }
+
+    [HarmonyPatch(typeof(HediffGiver_Heat), nameof(HediffGiver_Heat.OnIntervalPassed))]
+	class HediffGiver_Heat_OnIntervalPassed
+	{
+		public static bool Prefix()
+		{
+			if (Main.slowOnDamage) Main.eventSpeedActive = true;
+
+			return true;
+		}
+	}
+
+	[HarmonyPatch(typeof(Verb), nameof(Verb.TryStartCastOn),
+		new Type[] { typeof(LocalTargetInfo), typeof(LocalTargetInfo), typeof(bool), typeof(bool), typeof(bool) })]
+	class Verb_TryStartCastOn
+	{
+		public static bool Prefix()
+		{
+			if (Main.slowOnDamage) Main.eventSpeedActive = true;
+
+			return true;
+		}
+	}
+
 	[HarmonyPatch(typeof(TimeSlower), nameof(TimeSlower.SignalForceNormalSpeed))]
 	class TimeSlower_SignalForceNormalSpeed_Patch
 	{
 		public static bool Prefix()
 		{
-			if (Main.noPauseEnabled) {
-				var tm = Find.TickManager;
-				tm.CurTimeSpeed = TimeSpeed.Normal;
-				return false;
-			}
-			else return true;
+			return Main.ModifyGameSpeed();
 		}
 	}
 
@@ -240,13 +383,7 @@ namespace NoPauseChallenge
 	{
 		public static bool Prefix()
 		{
-			if (Main.noPauseEnabled)
-			{
-				var tm = Find.TickManager;
-				tm.CurTimeSpeed = TimeSpeed.Normal;
-				return false;
-			}
-			else return true;
+			return Main.ModifyGameSpeed();
 		}
 	}
 
