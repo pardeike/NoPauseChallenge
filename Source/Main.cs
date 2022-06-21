@@ -613,7 +613,12 @@ namespace NoPauseChallenge
 			return Main.noPauseEnabled ? 2 : 1;
 		}
 
-		public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+		static bool AllowUltrafastKeybind()
+		{
+			return Prefs.DevMode || KeyBindingDefOf.TimeSpeed_Ultrafast.KeyDownEvent;
+		}
+
+		public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator generator)
 		{
 			var list = instructions.ToList();
 			int idx;
@@ -658,6 +663,15 @@ namespace NoPauseChallenge
 				list.Insert(idx + 2, new CodeInstruction(OpCodes.Mul));
 			}
 
+			var p_DevMode = AccessTools.PropertyGetter(typeof(Prefs), nameof(Prefs.DevMode));
+			idx = list.FirstIndexOf(instr => instr.Calls(p_DevMode));
+			if (idx < 0 || idx >= list.Count)
+				Log.Error("Cannot find call Prefs::get_DevMode() in TimeControls.DoTimeControlsGUI");
+			else
+			{
+				list[idx].opcode = OpCodes.Call;
+				list[idx].operand = SymbolExtensions.GetMethodInfo(() => AllowUltrafastKeybind());
+			}
 			return list;
 		}
 
@@ -671,6 +685,8 @@ namespace NoPauseChallenge
 
 			if (Event.current.type == EventType.KeyDown)
 			{
+
+
 				if (KeyBindingDefOf.TogglePause.KeyDownEvent)
 				{
 					var tm = Find.TickManager;
