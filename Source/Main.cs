@@ -2,6 +2,7 @@
 using HarmonyLib;
 using RimWorld;
 using RimWorld.Planet;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection.Emit;
@@ -16,6 +17,67 @@ namespace NoPauseChallenge
 		public static KeyBindingDef HalfSpeed;
 	}
 
+	public class Settings : ModSettings
+	{
+		// Flags for different time slow events
+		public static bool slowOnRaid = true;
+		public static bool slowOnCaravan = true;
+		public static bool slowOnLetter = true;
+		public static bool slowOnDamage = false;
+		public static bool slowOnEnemyApproach = false;
+		public static bool slowOnPrisonBreak = true;
+
+		public static void DoSettingsWindowContents(Rect rect)
+        {
+			Listing_Standard modOptions = new Listing_Standard();
+
+			modOptions.Begin(rect);
+			modOptions.Gap(20f);
+
+			modOptions.Label("Events that trigger normal speed".Translate());
+
+			modOptions.CheckboxLabeled("Raid", ref slowOnRaid, "Set the game to normal speed when a raid occurs.");
+			modOptions.CheckboxLabeled("Caravan", ref slowOnCaravan, "Set the game to normal speed when a Caravan event occurs, such as an ambush.");
+			modOptions.CheckboxLabeled("Notification", ref slowOnLetter, "Set the game to normal speed when a certain notifications are received, such as a mad animal.");
+			modOptions.CheckboxLabeled("Damage", ref slowOnDamage, "Set the game to normal speed when a pawn takes damage.");
+			modOptions.CheckboxLabeled("Enemy Approaching", ref slowOnEnemyApproach, "Set the game to normal speed when an enemy gets near.");
+			modOptions.CheckboxLabeled("Prison Break", ref slowOnPrisonBreak, "Set the game to normal speed when a prison break occurs.");
+
+			modOptions.End();
+        }
+
+		public override void ExposeData()
+		{
+			base.ExposeData();
+			Scribe_Values.Look(ref slowOnRaid, "NPC_SlowOnRaid", true);
+			Scribe_Values.Look(ref slowOnCaravan, "NPC_SlowOnCaravan", true);
+			Scribe_Values.Look(ref slowOnLetter, "NPC_SlowOnLetter", true);
+			Scribe_Values.Look(ref slowOnDamage, "NPC_SlowOnDamage", false);
+			Scribe_Values.Look(ref slowOnEnemyApproach, "NPC_SlowOnEnemyApproach", false);
+			Scribe_Values.Look(ref slowOnPrisonBreak, "NPC_SlowOnPrisonBreak", true);
+		}
+	}
+
+	public class SettingsUI : Mod
+	{
+		public SettingsUI(ModContentPack content) : base(content)
+		{
+			this.GetSettings<Settings>();
+		}
+
+		public override void DoSettingsWindowContents(Rect inRect)
+		{
+			base.DoSettingsWindowContents(inRect);
+
+			Settings.DoSettingsWindowContents(inRect.LeftPart(0.75f));
+		}
+
+		public override string SettingsCategory()
+		{
+			return "No Pause Challenge";
+		}
+	}
+
 	[StaticConstructorOnStartup]
 	public static class Main
 	{
@@ -24,6 +86,13 @@ namespace NoPauseChallenge
 		public static bool fullPauseActive = false;
 		public static bool halfSpeedActive = false;
 		public static bool closeTradeDialog = false;
+
+		// Check Prefs.AutomaticPauseMode for management of pause level
+		// FixMe: This condition could improperly stay true
+		// if a patch sets it but never hits the SignalForceNormalSpeed* function.
+		// Not sure if that is a big enough issue to track down
+		public static bool eventSpeedActive = false;
+
 		public static TimeSpeed lastTimeSpeed = TimeSpeed.Paused;
 		public static Texture2D[] originalSpeedButtonTextures;
 
@@ -70,6 +139,18 @@ namespace NoPauseChallenge
 		static void AddUltraButton()
 		{
 			TexButton.SpeedButtonTextures[4] = ContentFinder<Texture2D>.Get("TimeSpeedButton_Ultrafast", true);
+		}
+
+		public static bool ModifyGameSpeed()
+        {
+			if (noPauseEnabled && eventSpeedActive)
+			{
+				var tm = Find.TickManager;
+				tm.CurTimeSpeed = TimeSpeed.Normal;
+				eventSpeedActive = false;
+				return false;
+			}
+			else return true;
 		}
 	}
 
@@ -221,12 +302,137 @@ namespace NoPauseChallenge
 		}
 	}
 
+	[HarmonyPatch(typeof(IncidentWorker_RaidEnemy), nameof(IncidentWorker_RaidEnemy.TryExecuteWorker))]
+	class IncidentWorker_RaidEnemy_TryExecuteWorker
+	{
+		public static bool Prefix()
+		{
+			if (Settings.slowOnRaid) Main.eventSpeedActive = true;
+
+			return true;
+		}
+	}
+
+	[HarmonyPatch(typeof(IncidentWorker_Infestation), nameof(IncidentWorker_Infestation.TryExecuteWorker))]
+	class IncidentWorker_Infestation_TryExecuteWorker
+	{
+		public static bool Prefix()
+		{
+			if (Settings.slowOnRaid) Main.eventSpeedActive = true;
+
+			return true;
+		}
+	}
+
+	[HarmonyPatch(typeof(IncidentWorker_ManhunterPack), nameof(IncidentWorker_ManhunterPack.TryExecuteWorker))]
+	class IncidentWorker_ManhunterPack_TryExecuteWorker
+	{
+		public static bool Prefix()
+		{
+			if (Settings.slowOnRaid) Main.eventSpeedActive = true;
+
+			return true;
+		}
+	}
+
+	[HarmonyPatch(typeof(DamageWorker_Flame), nameof(DamageWorker.Apply))]
+	class DamageWorker_Flame_Apply
+	{
+		public static bool Prefix()
+		{
+			if (Settings.slowOnDamage) Main.eventSpeedActive = true;
+
+			return true;
+		}
+	}
+
+	[HarmonyPatch(typeof(LetterStack), nameof(LetterStack.ReceiveLetter),
+		new Type[] { typeof(Letter), typeof(string) })]
+	class LetterStack_ReceiveLetter
+	{
+		public static bool Prefix()
+		{
+			if (Settings.slowOnLetter) Main.eventSpeedActive = true;
+
+			return true;
+		}
+	}
+
+	[HarmonyPatch(typeof(TickManager), nameof(TickManager.Notify_GeneratedPotentiallyHostileMap))]
+	class TickManager_Notify_GeneratedPotentiallyHostileMap
+	{
+		public static bool Prefix()
+		{
+			if (Settings.slowOnCaravan) Main.eventSpeedActive = true;
+
+			return true;
+		}
+	}
+
+	[HarmonyPatch(typeof(JobGiver_AIFightEnemy), nameof(JobGiver_AIFightEnemy.UpdateEnemyTarget))]
+	class JobGiver_AIFightEnemy_UpdateEnemyTarget
+	{
+		public static bool Prefix()
+		{
+			if (Settings.slowOnEnemyApproach) Main.eventSpeedActive = true;
+
+			return true;
+		}
+	}
+
+	[HarmonyPatch(typeof(JobGiver_PrisonerEscape), nameof(JobGiver_PrisonerEscape.TryGiveJob))]
+	class JobGiver_PrisonerEscape_TryGiveJob
+	{
+		public static bool Prefix()
+		{
+			if (Settings.slowOnPrisonBreak) Main.eventSpeedActive = true;
+
+			return true;
+		}
+	}
+
+    [HarmonyPatch(typeof(PrisonBreakUtility), nameof(PrisonBreakUtility.StartPrisonBreak),
+        new Type[] { typeof(Pawn), typeof(string), typeof(string), typeof(LetterDef) },
+		new ArgumentType[] { ArgumentType.Normal, ArgumentType.Out, ArgumentType.Out, ArgumentType.Out })]
+    class PrisonBreakUtility_StartPrisonBreak
+    {
+        public static bool Prefix()
+        {
+            if (Settings.slowOnPrisonBreak) Main.eventSpeedActive = true;
+
+            return true;
+        }
+    }
+
+    [HarmonyPatch(typeof(HediffGiver_Heat), nameof(HediffGiver_Heat.OnIntervalPassed))]
+	class HediffGiver_Heat_OnIntervalPassed
+	{
+		public static bool Prefix()
+		{
+			if (Settings.slowOnDamage) Main.eventSpeedActive = true;
+
+			return true;
+		}
+	}
+
+	[HarmonyPatch(typeof(Verb), nameof(Verb.TryStartCastOn),
+		new Type[] { typeof(LocalTargetInfo), typeof(LocalTargetInfo), typeof(bool), typeof(bool), typeof(bool) })]
+	class Verb_TryStartCastOn
+	{
+		public static bool Prefix()
+		{
+			if (Settings.slowOnDamage) Main.eventSpeedActive = true;
+
+			return true;
+		}
+	}
+
 	[HarmonyPatch(typeof(TimeSlower), nameof(TimeSlower.SignalForceNormalSpeed))]
 	class TimeSlower_SignalForceNormalSpeed_Patch
 	{
 		public static bool Prefix()
 		{
-			return (Main.noPauseEnabled == false);
+			return Main.ModifyGameSpeed();
 		}
 	}
 
@@ -235,7 +441,7 @@ namespace NoPauseChallenge
 	{
 		public static bool Prefix()
 		{
-			return (Main.noPauseEnabled == false);
+			return Main.ModifyGameSpeed();
 		}
 	}
 
@@ -363,6 +569,17 @@ namespace NoPauseChallenge
 		}
 	}
 
+	[HarmonyPatch(typeof(TimeSlower), nameof(TimeSlower.ForcedNormalSpeed), MethodType.Getter)]
+	class TimeSlower_ForcedNormalSpeed
+    {
+		public static bool Prefix(bool __result)
+        {
+			// Always block forced normal speed, skip the original method call
+			__result = false;
+			return false;
+        }
+    }
+
 	[HarmonyPatch(typeof(TimeControls), nameof(TimeControls.DoTimeControlsGUI))]
 	class TimeControls_DoTimeControlsGUI_Patch
 	{
@@ -396,7 +613,12 @@ namespace NoPauseChallenge
 			return Main.noPauseEnabled ? 2 : 1;
 		}
 
-		public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+		static bool AllowUltrafastKeybind()
+		{
+			return Prefs.DevMode || KeyBindingDefOf.TimeSpeed_Ultrafast.KeyDownEvent;
+		}
+
+		public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator generator)
 		{
 			var list = instructions.ToList();
 			int idx;
@@ -441,6 +663,15 @@ namespace NoPauseChallenge
 				list.Insert(idx + 2, new CodeInstruction(OpCodes.Mul));
 			}
 
+			var p_DevMode = AccessTools.PropertyGetter(typeof(Prefs), nameof(Prefs.DevMode));
+			idx = list.FirstIndexOf(instr => instr.Calls(p_DevMode));
+			if (idx < 0 || idx >= list.Count)
+				Log.Error("Cannot find call Prefs::get_DevMode() in TimeControls.DoTimeControlsGUI");
+			else
+			{
+				list[idx].opcode = OpCodes.Call;
+				list[idx].operand = SymbolExtensions.GetMethodInfo(() => AllowUltrafastKeybind());
+			}
 			return list;
 		}
 
@@ -454,6 +685,8 @@ namespace NoPauseChallenge
 
 			if (Event.current.type == EventType.KeyDown)
 			{
+
+
 				if (KeyBindingDefOf.TogglePause.KeyDownEvent)
 				{
 					var tm = Find.TickManager;
