@@ -11,73 +11,6 @@ using Verse;
 
 namespace NoPauseChallenge
 {
-	[DefOf]
-	public static class Defs
-	{
-		public static KeyBindingDef HalfSpeed;
-	}
-
-	public class Settings : ModSettings
-	{
-		// Flags for different time slow events
-		public static bool slowOnRaid = true;
-		public static bool slowOnCaravan = true;
-		public static bool slowOnLetter = true;
-		public static bool slowOnDamage = false;
-		public static bool slowOnEnemyApproach = false;
-		public static bool slowOnPrisonBreak = true;
-
-		public static void DoSettingsWindowContents(Rect rect)
-        {
-			Listing_Standard modOptions = new Listing_Standard();
-
-			modOptions.Begin(rect);
-			modOptions.Gap(20f);
-
-			modOptions.Label("Events that trigger normal speed".Translate());
-
-			modOptions.CheckboxLabeled("Raid", ref slowOnRaid, "Set the game to normal speed when a raid occurs.");
-			modOptions.CheckboxLabeled("Caravan", ref slowOnCaravan, "Set the game to normal speed when a Caravan event occurs, such as an ambush.");
-			modOptions.CheckboxLabeled("Notification", ref slowOnLetter, "Set the game to normal speed when a certain notifications are received, such as a mad animal.");
-			modOptions.CheckboxLabeled("Damage", ref slowOnDamage, "Set the game to normal speed when a pawn takes damage.");
-			modOptions.CheckboxLabeled("Enemy Approaching", ref slowOnEnemyApproach, "Set the game to normal speed when an enemy gets near.");
-			modOptions.CheckboxLabeled("Prison Break", ref slowOnPrisonBreak, "Set the game to normal speed when a prison break occurs.");
-
-			modOptions.End();
-        }
-
-		public override void ExposeData()
-		{
-			base.ExposeData();
-			Scribe_Values.Look(ref slowOnRaid, "NPC_SlowOnRaid", true);
-			Scribe_Values.Look(ref slowOnCaravan, "NPC_SlowOnCaravan", true);
-			Scribe_Values.Look(ref slowOnLetter, "NPC_SlowOnLetter", true);
-			Scribe_Values.Look(ref slowOnDamage, "NPC_SlowOnDamage", false);
-			Scribe_Values.Look(ref slowOnEnemyApproach, "NPC_SlowOnEnemyApproach", false);
-			Scribe_Values.Look(ref slowOnPrisonBreak, "NPC_SlowOnPrisonBreak", true);
-		}
-	}
-
-	public class SettingsUI : Mod
-	{
-		public SettingsUI(ModContentPack content) : base(content)
-		{
-			this.GetSettings<Settings>();
-		}
-
-		public override void DoSettingsWindowContents(Rect inRect)
-		{
-			base.DoSettingsWindowContents(inRect);
-
-			Settings.DoSettingsWindowContents(inRect.LeftPart(0.75f));
-		}
-
-		public override string SettingsCategory()
-		{
-			return "No Pause Challenge";
-		}
-	}
-
 	[StaticConstructorOnStartup]
 	public static class Main
 	{
@@ -155,9 +88,9 @@ namespace NoPauseChallenge
 	}
 
 	[HarmonyPatch(typeof(StorytellerUI), nameof(StorytellerUI.DrawStorytellerSelectionInterface))]
-	static class StorytellerUI_DrawStorytellerSelectionInterface_Patch
+	class StorytellerUI_DrawStorytellerSelectionInterface_Patch
 	{
-		static void AddCheckbox(Listing_Standard infoListing, float gap)
+		public static void AddCheckbox(Listing_Standard infoListing, float gap)
 		{
 			infoListing.Gap(gap);
 			infoListing.CheckboxLabeled("No Pause Challenge", ref Main.noPauseEnabled, null);
@@ -191,7 +124,7 @@ namespace NoPauseChallenge
 	}
 
 	[HarmonyPatch(typeof(CameraDriver), nameof(CameraDriver.Expose))]
-	static class CameraDriver_Expose_Patch
+	class CameraDriver_Expose_Patch
 	{
 		public static void Postfix()
 		{
@@ -200,7 +133,7 @@ namespace NoPauseChallenge
 				Scribe_Values.Look(ref Main.noPauseEnabled, "noPause", false, false);
 				Scribe_Values.Look(ref Main.halfSpeedEnabled, "halfSpeed", false, false);
 			}
-			catch (System.Exception)
+			catch (Exception)
 			{
 				Main.noPauseEnabled = false;
 				Main.halfSpeedEnabled = false;
@@ -209,7 +142,7 @@ namespace NoPauseChallenge
 	}
 
 	[HarmonyPatch(typeof(GameComponentUtility), nameof(GameComponentUtility.LoadedGame))]
-	static class GameComponentUtility_LoadedGame_Patch
+	class GameComponentUtility_LoadedGame_Patch
 	{
 		public static void Postfix()
 		{
@@ -297,7 +230,8 @@ namespace NoPauseChallenge
 	{
 		public static bool Prefix()
 		{
-			if (Main.fullPauseActive) return false;
+			if (Main.fullPauseActive)
+				return false;
 			return (Main.noPauseEnabled == false);
 		}
 	}
@@ -307,7 +241,8 @@ namespace NoPauseChallenge
 	{
 		public static bool Prefix()
 		{
-			if (Settings.slowOnRaid) Main.eventSpeedActive = true;
+			if (Settings.slowOnRaid)
+				Main.eventSpeedActive = true;
 
 			return true;
 		}
@@ -318,7 +253,8 @@ namespace NoPauseChallenge
 	{
 		public static bool Prefix()
 		{
-			if (Settings.slowOnRaid) Main.eventSpeedActive = true;
+			if (Settings.slowOnRaid)
+				Main.eventSpeedActive = true;
 
 			return true;
 		}
@@ -329,7 +265,8 @@ namespace NoPauseChallenge
 	{
 		public static bool Prefix()
 		{
-			if (Settings.slowOnRaid) Main.eventSpeedActive = true;
+			if (Settings.slowOnRaid)
+				Main.eventSpeedActive = true;
 
 			return true;
 		}
@@ -340,7 +277,8 @@ namespace NoPauseChallenge
 	{
 		public static bool Prefix()
 		{
-			if (Settings.slowOnDamage) Main.eventSpeedActive = true;
+			if (Settings.slowOnDamage)
+				Main.eventSpeedActive = true;
 
 			return true;
 		}
@@ -352,7 +290,8 @@ namespace NoPauseChallenge
 	{
 		public static bool Prefix()
 		{
-			if (Settings.slowOnLetter) Main.eventSpeedActive = true;
+			if (Settings.slowOnLetter)
+				Main.eventSpeedActive = true;
 
 			return true;
 		}
@@ -363,7 +302,8 @@ namespace NoPauseChallenge
 	{
 		public static bool Prefix()
 		{
-			if (Settings.slowOnCaravan) Main.eventSpeedActive = true;
+			if (Settings.slowOnCaravan)
+				Main.eventSpeedActive = true;
 
 			return true;
 		}
@@ -374,7 +314,8 @@ namespace NoPauseChallenge
 	{
 		public static bool Prefix()
 		{
-			if (Settings.slowOnEnemyApproach) Main.eventSpeedActive = true;
+			if (Settings.slowOnEnemyApproach)
+				Main.eventSpeedActive = true;
 
 			return true;
 		}
@@ -385,7 +326,8 @@ namespace NoPauseChallenge
 	{
 		public static bool Prefix()
 		{
-			if (Settings.slowOnPrisonBreak) Main.eventSpeedActive = true;
+			if (Settings.slowOnPrisonBreak)
+				Main.eventSpeedActive = true;
 
 			return true;
 		}
@@ -398,7 +340,8 @@ namespace NoPauseChallenge
     {
         public static bool Prefix()
         {
-            if (Settings.slowOnPrisonBreak) Main.eventSpeedActive = true;
+            if (Settings.slowOnPrisonBreak)
+				Main.eventSpeedActive = true;
 
             return true;
         }
@@ -409,20 +352,21 @@ namespace NoPauseChallenge
 	{
 		public static bool Prefix()
 		{
-			if (Settings.slowOnDamage) Main.eventSpeedActive = true;
+			if (Settings.slowOnDamage)
+				Main.eventSpeedActive = true;
 
 			return true;
 		}
 	}
 
-	[HarmonyPatch(typeof(Verb), nameof(Verb.TryStartCastOn),
-		new Type[] { typeof(LocalTargetInfo), typeof(LocalTargetInfo), typeof(bool), typeof(bool), typeof(bool) })]
+	[HarmonyPatch(typeof(Verb), nameof(Verb.TryStartCastOn))]
+	[HarmonyPatch(new Type[] { typeof(LocalTargetInfo), typeof(bool), typeof(bool), typeof(bool), typeof(bool) })]
 	class Verb_TryStartCastOn
 	{
 		public static bool Prefix()
 		{
-			if (Settings.slowOnDamage) Main.eventSpeedActive = true;
-
+			if (Settings.slowOnDamage)
+				Main.eventSpeedActive = true;
 			return true;
 		}
 	}
@@ -508,14 +452,14 @@ namespace NoPauseChallenge
 			return true;
 		}
 
-		static bool TryExecute(TradeDeal instance, out bool actuallyTraded)
+		public static bool TryExecute(TradeDeal instance, out bool actuallyTraded)
 		{
 			actuallyTraded = false;
 			try
 			{
 				return instance.TryExecute(out actuallyTraded);
 			}
-			catch (System.Exception)
+			catch (Exception)
 			{
 			}
 			return false;
@@ -533,7 +477,7 @@ namespace NoPauseChallenge
 	[HarmonyPatch(typeof(UIRoot_Play), nameof(UIRoot_Play.UIRootOnGUI))]
 	class UIRoot_Play_UIRootOnGUI_Patch
 	{
-		static bool EscapeKeyHandling()
+		public static bool EscapeKeyHandling()
 		{
 			if (Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.Escape)
 			{
@@ -572,7 +516,7 @@ namespace NoPauseChallenge
 	[HarmonyPatch(typeof(TimeSlower), nameof(TimeSlower.ForcedNormalSpeed), MethodType.Getter)]
 	class TimeSlower_ForcedNormalSpeed
     {
-		public static bool Prefix(bool __result)
+		public static bool Prefix(ref bool __result)
         {
 			// Always block forced normal speed, skip the original method call
 			__result = false;
@@ -583,7 +527,7 @@ namespace NoPauseChallenge
 	[HarmonyPatch(typeof(TimeControls), nameof(TimeControls.DoTimeControlsGUI))]
 	class TimeControls_DoTimeControlsGUI_Patch
 	{
-		static Texture2D GetButtonTexture(TimeSpeed timeSpeed, TimeSpeed current, TimeSpeed index)
+		public static Texture2D GetButtonTexture(TimeSpeed timeSpeed, TimeSpeed current, TimeSpeed index)
 		{
 			if (Main.noPauseEnabled == false && Main.halfSpeedEnabled == false)
 				return Main.originalSpeedButtonTextures[(int)timeSpeed];
@@ -598,27 +542,27 @@ namespace NoPauseChallenge
 			return Main.SpeedButtonTextures[(int)timeSpeed];
 		}
 
-		static int GetTimeSpeedVarValue(TimeSpeed timeSpeed)
+		public static int GetTimeSpeedVarValue(TimeSpeed timeSpeed)
 		{
 			return Main.noPauseEnabled ? -1 : (int)timeSpeed;
 		}
 
-		static int ConditionalLoopStart()
+		public static int ConditionalLoopStart()
 		{
 			return Main.noPauseEnabled ? 1 : 0;
 		}
 
-		static int ConditionalUltaMultiplier()
+		public static int ConditionalUltaMultiplier()
 		{
 			return Main.noPauseEnabled ? 2 : 1;
 		}
 
-		static bool AllowUltrafastKeybind()
+		public static bool AllowUltrafastKeybind()
 		{
 			return Prefs.DevMode || KeyBindingDefOf.TimeSpeed_Ultrafast.KeyDownEvent;
 		}
 
-		public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator generator)
+		public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
 		{
 			var list = instructions.ToList();
 			int idx;
@@ -685,8 +629,6 @@ namespace NoPauseChallenge
 
 			if (Event.current.type == EventType.KeyDown)
 			{
-
-
 				if (KeyBindingDefOf.TogglePause.KeyDownEvent)
 				{
 					var tm = Find.TickManager;
