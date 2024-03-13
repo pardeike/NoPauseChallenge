@@ -5,6 +5,7 @@ using RimWorld.Planet;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Reflection.Emit;
 using UnityEngine;
 using Verse;
@@ -29,30 +30,30 @@ namespace NoPauseChallenge
 		public static TimeSpeed lastTimeSpeed = TimeSpeed.Paused;
 		public static Texture2D[] originalSpeedButtonTextures;
 
-		public static readonly Texture2D[] SpeedButtonTextures = new Texture2D[]
-		{
+		public static readonly Texture2D[] SpeedButtonTextures =
+		[
 			ContentFinder<Texture2D>.Get("TimeSpeedButton_Pause", true),
 			ContentFinder<Texture2D>.Get("TimeSpeedButton_Normal", true),
 			ContentFinder<Texture2D>.Get("TimeSpeedButton_Fast", true),
 			ContentFinder<Texture2D>.Get("TimeSpeedButton_Superfast", true),
 			ContentFinder<Texture2D>.Get("TimeSpeedButton_Ultrafast", true)
-		};
-		public static readonly Texture2D[] SpeedButtonTexturesHalf = new Texture2D[]
-		{
+		];
+		public static readonly Texture2D[] SpeedButtonTexturesHalf =
+		[
 			ContentFinder<Texture2D>.Get("TimeSpeedButton_Pause_Half", true),
 			ContentFinder<Texture2D>.Get("TimeSpeedButton_Normal_Half", true),
 			ContentFinder<Texture2D>.Get("TimeSpeedButton_Fast_Half", true),
 			ContentFinder<Texture2D>.Get("TimeSpeedButton_Superfast_Half", true),
 			ContentFinder<Texture2D>.Get("TimeSpeedButton_Ultrafast_Half", true)
-		};
-		public static readonly Texture2D[] SpeedButtonTexturesActive = new Texture2D[]
-		{
+		];
+		public static readonly Texture2D[] SpeedButtonTexturesActive =
+		[
 			ContentFinder<Texture2D>.Get("TimeSpeedButton_Pause_Active", true),
 			ContentFinder<Texture2D>.Get("TimeSpeedButton_Normal_Active", true),
 			ContentFinder<Texture2D>.Get("TimeSpeedButton_Fast_Active", true),
 			ContentFinder<Texture2D>.Get("TimeSpeedButton_Superfast_Active", true),
 			ContentFinder<Texture2D>.Get("TimeSpeedButton_Ultrafast_Active", true)
-		};
+		];
 
 		static Main()
 		{
@@ -75,7 +76,7 @@ namespace NoPauseChallenge
 		}
 
 		public static bool ModifyGameSpeed()
-        {
+		{
 			if (noPauseEnabled && eventSpeedActive)
 			{
 				var tm = Find.TickManager;
@@ -83,7 +84,8 @@ namespace NoPauseChallenge
 				eventSpeedActive = false;
 				return false;
 			}
-			else return true;
+			else
+				return true;
 		}
 	}
 
@@ -236,126 +238,120 @@ namespace NoPauseChallenge
 		}
 	}
 
-	[HarmonyPatch(typeof(IncidentWorker_RaidEnemy), nameof(IncidentWorker_RaidEnemy.TryExecuteWorker))]
-	class IncidentWorker_RaidEnemy_TryExecuteWorker
+	[HarmonyPatch]
+	class IncidentWorker_TryExecuteWorker
 	{
-		public static bool Prefix()
+		public static IEnumerable<MethodBase> TargetMethods()
 		{
-			if (Settings.slowOnRaid)
-				Main.eventSpeedActive = true;
-
-			return true;
+			return new Type[] {
+				typeof(IncidentWorker_AggressiveAnimals),
+				typeof(IncidentWorker_Alphabeavers),
+				typeof(IncidentWorker_Ambush),
+				typeof(IncidentWorker_Ambush_EnemyFaction),
+				typeof(IncidentWorker_Ambush_ManhunterPack),
+				typeof(IncidentWorker_AnimalInsanityMass),
+				typeof(IncidentWorker_AnimalInsanitySingle),
+				typeof(IncidentWorker_ChimeraAssault),
+				typeof(IncidentWorker_DeepDrillInfestation),
+				typeof(IncidentWorker_DevourerAssault),
+				typeof(IncidentWorker_DevourerWaterAssault),
+				typeof(IncidentWorker_EntitySwarm),
+				typeof(IncidentWorker_FleshbeastAttack),
+				typeof(IncidentWorker_FleshmassHeart),
+				typeof(IncidentWorker_GhoulAttack),
+				typeof(IncidentWorker_GorehulkAssault),
+				typeof(IncidentWorker_Infestation),
+				typeof(IncidentWorker_MechCluster),
+				typeof(IncidentWorker_MeteoriteImpact),
+				typeof(IncidentWorker_Raid),
+				typeof(IncidentWorker_RaidEnemy),
+				typeof(IncidentWorker_ShamblerAssault),
+				typeof(IncidentWorker_ShamblerSwarm),
+				typeof(IncidentWorker_ShamblerSwarmAnimals),
+				typeof(IncidentWorker_ShamblerSwarmSmall),
+				typeof(IncidentWorker_UnnaturalCorpseArrival),
+				typeof(IncidentWorker_VoidCuriosity),
+			}
+			.Select(type => AccessTools.Method(type, nameof(IncidentWorker.TryExecuteWorker)))
+			.OfType<MethodBase>();
 		}
-	}
 
-	[HarmonyPatch(typeof(IncidentWorker_Infestation), nameof(IncidentWorker_Infestation.TryExecuteWorker))]
-	class IncidentWorker_Infestation_TryExecuteWorker
-	{
-		public static bool Prefix()
+		public static void Prefix()
 		{
 			if (Settings.slowOnRaid)
 				Main.eventSpeedActive = true;
-
-			return true;
-		}
-	}
-
-	[HarmonyPatch(typeof(IncidentWorker_ManhunterPack), nameof(IncidentWorker_ManhunterPack.TryExecuteWorker))]
-	class IncidentWorker_ManhunterPack_TryExecuteWorker
-	{
-		public static bool Prefix()
-		{
-			if (Settings.slowOnRaid)
-				Main.eventSpeedActive = true;
-
-			return true;
 		}
 	}
 
 	[HarmonyPatch(typeof(DamageWorker_Flame), nameof(DamageWorker.Apply))]
 	class DamageWorker_Flame_Apply
 	{
-		public static bool Prefix()
+		public static void Prefix()
 		{
 			if (Settings.slowOnDamage)
 				Main.eventSpeedActive = true;
-
-			return true;
 		}
 	}
 
-	[HarmonyPatch(typeof(LetterStack), nameof(LetterStack.ReceiveLetter),
-		new Type[] { typeof(Letter), typeof(string) })]
+	[HarmonyPatch(typeof(LetterStack), nameof(LetterStack.ReceiveLetter), [typeof(Letter), typeof(string), typeof(int), typeof(bool)])]
 	class LetterStack_ReceiveLetter
 	{
-		public static bool Prefix()
+		public static void Prefix()
 		{
 			if (Settings.slowOnLetter)
 				Main.eventSpeedActive = true;
-
-			return true;
 		}
 	}
 
 	[HarmonyPatch(typeof(TickManager), nameof(TickManager.Notify_GeneratedPotentiallyHostileMap))]
 	class TickManager_Notify_GeneratedPotentiallyHostileMap
 	{
-		public static bool Prefix()
+		public static void Prefix()
 		{
 			if (Settings.slowOnCaravan)
 				Main.eventSpeedActive = true;
-
-			return true;
 		}
 	}
 
 	[HarmonyPatch(typeof(JobGiver_AIFightEnemy), nameof(JobGiver_AIFightEnemy.UpdateEnemyTarget))]
 	class JobGiver_AIFightEnemy_UpdateEnemyTarget
 	{
-		public static bool Prefix()
+		public static void Prefix()
 		{
 			if (Settings.slowOnEnemyApproach)
 				Main.eventSpeedActive = true;
-
-			return true;
 		}
 	}
 
 	[HarmonyPatch(typeof(JobGiver_PrisonerEscape), nameof(JobGiver_PrisonerEscape.TryGiveJob))]
 	class JobGiver_PrisonerEscape_TryGiveJob
 	{
-		public static bool Prefix()
+		public static void Prefix()
 		{
 			if (Settings.slowOnPrisonBreak)
 				Main.eventSpeedActive = true;
-
-			return true;
 		}
 	}
 
-    [HarmonyPatch(typeof(PrisonBreakUtility), nameof(PrisonBreakUtility.StartPrisonBreak),
-        new Type[] { typeof(Pawn), typeof(string), typeof(string), typeof(LetterDef) },
-		new ArgumentType[] { ArgumentType.Normal, ArgumentType.Out, ArgumentType.Out, ArgumentType.Out })]
-    class PrisonBreakUtility_StartPrisonBreak
-    {
-        public static bool Prefix()
-        {
-            if (Settings.slowOnPrisonBreak)
+	[HarmonyPatch(typeof(PrisonBreakUtility), nameof(PrisonBreakUtility.StartPrisonBreak),
+		 [typeof(Pawn), typeof(string), typeof(string), typeof(LetterDef), typeof(List<Pawn>)],
+	  [ArgumentType.Normal, ArgumentType.Out, ArgumentType.Out, ArgumentType.Out, ArgumentType.Out])]
+	class PrisonBreakUtility_StartPrisonBreak
+	{
+		public static void Prefix()
+		{
+			if (Settings.slowOnPrisonBreak)
 				Main.eventSpeedActive = true;
+		}
+	}
 
-            return true;
-        }
-    }
-
-    [HarmonyPatch(typeof(HediffGiver_Heat), nameof(HediffGiver_Heat.OnIntervalPassed))]
+	[HarmonyPatch(typeof(HediffGiver_Heat), nameof(HediffGiver_Heat.OnIntervalPassed))]
 	class HediffGiver_Heat_OnIntervalPassed
 	{
-		public static bool Prefix()
+		public static void Prefix()
 		{
 			if (Settings.slowOnDamage)
 				Main.eventSpeedActive = true;
-
-			return true;
 		}
 	}
 
@@ -363,11 +359,10 @@ namespace NoPauseChallenge
 	[HarmonyPatch(new Type[] { typeof(LocalTargetInfo), typeof(bool), typeof(bool), typeof(bool), typeof(bool) })]
 	class Verb_TryStartCastOn
 	{
-		public static bool Prefix()
+		public static void Prefix()
 		{
 			if (Settings.slowOnDamage)
 				Main.eventSpeedActive = true;
-			return true;
 		}
 	}
 
@@ -503,8 +498,10 @@ namespace NoPauseChallenge
 
 		public static void Postfix()
 		{
-			if (Main.halfSpeedEnabled == false) return;
-			if (Event.current.type != EventType.KeyDown) return;
+			if (Main.halfSpeedEnabled == false)
+				return;
+			if (Event.current.type != EventType.KeyDown)
+				return;
 			if (Defs.HalfSpeed.KeyDownEvent)
 			{
 				Main.halfSpeedActive = !Main.halfSpeedActive;
@@ -515,14 +512,14 @@ namespace NoPauseChallenge
 
 	[HarmonyPatch(typeof(TimeSlower), nameof(TimeSlower.ForcedNormalSpeed), MethodType.Getter)]
 	class TimeSlower_ForcedNormalSpeed
-    {
+	{
 		public static bool Prefix(ref bool __result)
-        {
+		{
 			// Always block forced normal speed, skip the original method call
 			__result = false;
 			return false;
-        }
-    }
+		}
+	}
 
 	[HarmonyPatch(typeof(TimeControls), nameof(TimeControls.DoTimeControlsGUI))]
 	class TimeControls_DoTimeControlsGUI_Patch
