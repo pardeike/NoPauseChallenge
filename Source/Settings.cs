@@ -14,13 +14,13 @@ namespace NoPauseChallenge
 		public static bool slowOnPrisonBreak = true;
 
 		public static void DoSettingsWindowContents(Rect rect)
-        {
+		{
 			Listing_Standard modOptions = new Listing_Standard();
 
 			modOptions.Begin(rect);
 			modOptions.Gap(20f);
 
-			_ = modOptions.Label("Events that trigger normal speed".Translate());
+			_ = modOptions.Label("Events that trigger normal speed");
 
 			modOptions.CheckboxLabeled("Raid", ref slowOnRaid, "Set the game to normal speed when a raid occurs.");
 			modOptions.CheckboxLabeled("Caravan", ref slowOnCaravan, "Set the game to normal speed when a Caravan event occurs, such as an ambush.");
@@ -30,7 +30,7 @@ namespace NoPauseChallenge
 			modOptions.CheckboxLabeled("Prison Break", ref slowOnPrisonBreak, "Set the game to normal speed when a prison break occurs.");
 
 			modOptions.End();
-        }
+		}
 
 		public override void ExposeData()
 		{
