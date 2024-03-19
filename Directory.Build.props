@@ -4,7 +4,7 @@
 		<ModName>No Pause Challenge</ModName>
 		<ModFileName>NoPauseChallenge</ModFileName>
 		<Repository>https://github.com/pardeike/NoPauseChallenge</Repository>
-		<ModVersion>3.3.0.0</ModVersion>
+		<ModVersion>3.3.1.0</ModVersion>
 		<ProjectGuid>{E2B75701-29FB-4ED0-AA6A-6905B31ACBC9}</ProjectGuid>
 	</PropertyGroup>
 
