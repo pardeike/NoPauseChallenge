@@ -11,4 +11,10 @@
 		<label>Toggle Half Speed</label>
 		<defaultKeyCodeA>Alpha5</defaultKeyCodeA>
 	</KeyBindingDef>
+	<KeyBindingDef>
+		<category>NoPauseChallenge</category>
+		<defName>Freeze</defName>
+		<label>Freeze</label>
+		<defaultKeyCodeA>Escape</defaultKeyCodeA>
+	</KeyBindingDef>
 </Defs>

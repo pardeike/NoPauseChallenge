@@ -474,7 +474,7 @@ namespace NoPauseChallenge
 	{
 		public static bool EscapeKeyHandling()
 		{
-			if (Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.Escape)
+			if (Event.current.type == EventType.KeyDown && Defs.Freeze.KeyDownEvent)
 			{
 				Event.current.Use();
 				Main.fullPauseActive = !Main.fullPauseActive;
@@ -487,12 +487,12 @@ namespace NoPauseChallenge
 			var label = generator.DefineLabel();
 			var list = instructions.ToList();
 			list[0].labels.Add(label);
-			list.InsertRange(0, new[]
-			{
+			list.InsertRange(0,
+			[
 				new CodeInstruction(OpCodes.Call, SymbolExtensions.GetMethodInfo(() => EscapeKeyHandling())),
 				new CodeInstruction(OpCodes.Brfalse, label),
 				new CodeInstruction(OpCodes.Ret)
-			});
+			]);
 			return list.AsEnumerable();
 		}
 
