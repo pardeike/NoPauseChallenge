@@ -479,7 +479,7 @@ namespace NoPauseChallenge
 				Event.current.Use();
 				Main.fullPauseActive = !Main.fullPauseActive;
 			}
-			return Main.fullPauseActive;
+			return Settings.noFreeze == false && Main.fullPauseActive;
 		}
 
 		public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator generator)
