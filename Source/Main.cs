@@ -651,4 +651,22 @@ namespace NoPauseChallenge
 			return true;
 		}
 	}
+
+	[HarmonyPatch(typeof(Faction), nameof(Faction.FactionTick))]
+	class Faction_FactionTick
+	{
+		public static bool IsPlayer(Faction instance)
+		{
+			if (Find.WindowStack.IsOpen<Dialog_NamePlayerFactionAndSettlement>())
+				return false;
+			return instance.IsPlayer;
+		}
+
+		public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+		{
+			var mIsPlayer = AccessTools.PropertyGetter(typeof(Faction), nameof(Faction.IsPlayer));
+			var mIsPlayerReplacement = SymbolExtensions.GetMethodInfo(() => IsPlayer(null));
+			return instructions.MethodReplacer(mIsPlayer, mIsPlayerReplacement);
+		}
+	}
 }
