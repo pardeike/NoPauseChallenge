@@ -345,15 +345,21 @@ namespace NoPauseChallenge
 		}
 	}
 
+	/*
 	[HarmonyPatch(typeof(HediffGiver_Heat), nameof(HediffGiver_Heat.OnIntervalPassed))]
 	class HediffGiver_Heat_OnIntervalPassed
 	{
-		public static void Prefix()
+		public static void Prefix(Pawn pawn)
 		{
-			if (Settings.slowOnDamage)
+			if (Settings.slowOnDamage == false)
+				return;
+			var ambientTemperature = pawn.AmbientTemperature;
+			var floatRange = pawn.ComfortableTemperatureRange();
+			if (ambientTemperature > floatRange.max + 150f)
 				Main.eventSpeedActive = true;
 		}
 	}
+	*/
 
 	[HarmonyPatch(typeof(Verb), nameof(Verb.TryStartCastOn))]
 	[HarmonyPatch(new Type[] { typeof(LocalTargetInfo), typeof(bool), typeof(bool), typeof(bool), typeof(bool) })]
