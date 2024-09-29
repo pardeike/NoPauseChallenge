@@ -21,11 +21,8 @@ namespace NoPauseChallenge
 		public static bool halfSpeedActive = false;
 		public static bool closeTradeDialog = false;
 
-		// Check Prefs.AutomaticPauseMode for management of pause level
-		// FixMe: This condition could improperly stay true
-		// if a patch sets it but never hits the SignalForceNormalSpeed* function.
-		// Not sure if that is a big enough issue to track down
-		public static bool eventSpeedActive = false;
+		public static string eventSpeedActive = null;
+		public static int eventSpeedActiveResetCounter = 0;
 
 		public static TimeSpeed lastTimeSpeed = TimeSpeed.Paused;
 		public static Texture2D[] originalSpeedButtonTextures;
@@ -77,11 +74,14 @@ namespace NoPauseChallenge
 
 		public static bool ModifyGameSpeed()
 		{
-			if (noPauseEnabled && eventSpeedActive)
+			if (noPauseEnabled && eventSpeedActive != null)
 			{
+				Log.Warning($"Forcing 1x speed. Reason: {eventSpeedActive}");
+
 				var tm = Find.TickManager;
 				tm.CurTimeSpeed = TimeSpeed.Normal;
-				eventSpeedActive = false;
+				eventSpeedActive = null;
+				eventSpeedActiveResetCounter = 0;
 				return false;
 			}
 			else
@@ -276,10 +276,10 @@ namespace NoPauseChallenge
 			.OfType<MethodBase>();
 		}
 
-		public static void Prefix()
+		public static void Prefix(IncidentWorker __instance)
 		{
 			if (Settings.slowOnRaid)
-				Main.eventSpeedActive = true;
+				Main.eventSpeedActive = $"Incident {__instance.GetType().Name}";
 		}
 	}
 
@@ -289,7 +289,7 @@ namespace NoPauseChallenge
 		public static void Prefix()
 		{
 			if (Settings.slowOnDamage)
-				Main.eventSpeedActive = true;
+				Main.eventSpeedActive = "Damage";
 		}
 	}
 
@@ -299,7 +299,7 @@ namespace NoPauseChallenge
 		public static void Prefix()
 		{
 			if (Settings.slowOnLetter)
-				Main.eventSpeedActive = true;
+				Main.eventSpeedActive = "Letter";
 		}
 	}
 
@@ -309,7 +309,7 @@ namespace NoPauseChallenge
 		public static void Prefix()
 		{
 			if (Settings.slowOnCaravan)
-				Main.eventSpeedActive = true;
+				Main.eventSpeedActive = "Hostile On Map";
 		}
 	}
 
@@ -319,7 +319,7 @@ namespace NoPauseChallenge
 		public static void Prefix()
 		{
 			if (Settings.slowOnEnemyApproach)
-				Main.eventSpeedActive = true;
+				Main.eventSpeedActive = "Enemy Approaching";
 		}
 	}
 
@@ -329,7 +329,7 @@ namespace NoPauseChallenge
 		public static void Prefix()
 		{
 			if (Settings.slowOnPrisonBreak)
-				Main.eventSpeedActive = true;
+				Main.eventSpeedActive = "Prisioner Escaping";
 		}
 	}
 
@@ -341,7 +341,7 @@ namespace NoPauseChallenge
 		public static void Prefix()
 		{
 			if (Settings.slowOnPrisonBreak)
-				Main.eventSpeedActive = true;
+				Main.eventSpeedActive = "Prision Break";
 		}
 	}
 
@@ -368,7 +368,7 @@ namespace NoPauseChallenge
 		public static void Prefix()
 		{
 			if (Settings.slowOnDamage)
-				Main.eventSpeedActive = true;
+				Main.eventSpeedActive = "Damage";
 		}
 	}
 
@@ -472,6 +472,22 @@ namespace NoPauseChallenge
 			var from = SymbolExtensions.GetMethodInfo(() => new TradeDeal().TryExecute(out _bool));
 			var to = SymbolExtensions.GetMethodInfo(() => TryExecute(null, out _bool));
 			return Transpilers.MethodReplacer(instructions, from, to);
+		}
+	}
+
+	[HarmonyPatch(typeof(Root), nameof(Root.Update))]
+	class Root_Update_Patch
+	{
+		public static void Postfix()
+		{
+			if (Main.eventSpeedActive == null)
+				return;
+			Main.eventSpeedActiveResetCounter++;
+			if (Main.eventSpeedActiveResetCounter > 10)
+			{
+				Main.eventSpeedActive = null;
+				Main.eventSpeedActiveResetCounter = 0;
+			}
 		}
 	}
 
