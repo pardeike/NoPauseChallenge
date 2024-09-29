@@ -76,7 +76,8 @@ namespace NoPauseChallenge
 		{
 			if (noPauseEnabled && eventSpeedActive != null)
 			{
-				Log.Warning($"Forcing 1x speed. Reason: {eventSpeedActive}");
+				if (Prefs.DevMode)
+					Log.Warning($"Forcing 1x speed. Reason: {eventSpeedActive}");
 
 				var tm = Find.TickManager;
 				tm.CurTimeSpeed = TimeSpeed.Normal;
