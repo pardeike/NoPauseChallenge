@@ -197,7 +197,7 @@ namespace NoPauseChallenge
 			if (Main.noPauseEnabled == false)
 				return true;
 
-			__result = !___active || !WorldRendererUtility.WorldRenderedNow;
+			__result = !___active || !WorldRendererUtility.WorldRendered;
 			return false;
 		}
 	}
@@ -362,7 +362,7 @@ namespace NoPauseChallenge
 	*/
 
 	[HarmonyPatch(typeof(Verb), nameof(Verb.TryStartCastOn))]
-	[HarmonyPatch(new Type[] { typeof(LocalTargetInfo), typeof(bool), typeof(bool), typeof(bool), typeof(bool) })]
+	[HarmonyPatch([typeof(LocalTargetInfo), typeof(bool), typeof(bool), typeof(bool), typeof(bool)])]
 	class Verb_TryStartCastOn
 	{
 		public static void Prefix()
@@ -580,15 +580,11 @@ namespace NoPauseChallenge
 			}
 
 			var f_HighlightTex = AccessTools.Field(typeof(TexUI), nameof(TexUI.HighlightTex));
-			var speedCompareOperands = new List<CodeInstruction>();
 			idx = list.FirstIndexOf(instr => instr.LoadsField(f_HighlightTex)) - 5;
 			if (idx < 0 || idx >= list.Count)
 				Log.Error("Cannot find Ldsfld TexUI.HighlightTex in TimeControls.DoTimeControlsGUI");
 			else
-			{
-				speedCompareOperands = list.GetRange(idx, 3).Select(instr => instr.Clone()).ToList();
-				list.Insert(idx + 3, new CodeInstruction(OpCodes.Call, SymbolExtensions.GetMethodInfo(() => GetTimeSpeedVarValue(TimeSpeed.Normal))));
-			}
+				list.Insert(idx, new CodeInstruction(OpCodes.Call, SymbolExtensions.GetMethodInfo(() => GetTimeSpeedVarValue(TimeSpeed.Normal))));
 
 			var f_SpeedButtonTextures = AccessTools.Field(typeof(TexButton), nameof(TexButton.SpeedButtonTextures));
 			idx = list.FirstIndexOf(instr => instr.OperandIs(f_SpeedButtonTextures));
@@ -597,8 +593,14 @@ namespace NoPauseChallenge
 			else
 			{
 				list.RemoveAt(idx);
-				list[idx + 1] = new CodeInstruction(OpCodes.Call, SymbolExtensions.GetMethodInfo(() => GetButtonTexture(0, 0, 0)));
-				list.InsertRange(idx + 1, speedCompareOperands);
+				list.RemoveAt(idx + 1);
+				list.InsertRange(idx + 1,
+				[
+					new CodeInstruction(OpCodes.Ldloc_0),
+					new CodeInstruction(OpCodes.Callvirt, AccessTools.PropertyGetter(typeof(TickManager), nameof(TickManager.CurTimeSpeed))),
+					new CodeInstruction(OpCodes.Ldloc_3),
+					new CodeInstruction(OpCodes.Call, SymbolExtensions.GetMethodInfo(() => GetButtonTexture(0, 0, 0)))
+				]);
 			}
 
 			idx = list.FirstIndexOf(instr => instr.opcode == OpCodes.Ldc_I4_4);
