@@ -20,6 +20,7 @@ namespace NoPauseChallenge
 		public static bool fullPauseActive = false;
 		public static bool halfSpeedActive = false;
 		public static bool closeTradeDialog = false;
+		public static bool isPlacingGravship = false;
 
 		public static string eventSpeedActive = null;
 		public static int eventSpeedActiveResetCounter = 0;
@@ -80,7 +81,7 @@ namespace NoPauseChallenge
 					Log.Warning($"Forcing 1x speed. Reason: {eventSpeedActive}");
 
 				var tm = Find.TickManager;
-				tm.CurTimeSpeed = TimeSpeed.Normal;
+				tm.SetCurTimeSpeed(TimeSpeed.Normal);
 				eventSpeedActive = null;
 				eventSpeedActiveResetCounter = 0;
 				return false;
@@ -156,7 +157,7 @@ namespace NoPauseChallenge
 			{
 				var tm = Find.TickManager;
 				if (tm.CurTimeSpeed == TimeSpeed.Paused)
-					tm.CurTimeSpeed = TimeSpeed.Normal;
+					tm.SetCurTimeSpeed(TimeSpeed.Normal);
 			});
 		}
 	}
@@ -198,7 +199,7 @@ namespace NoPauseChallenge
 			if (Main.noPauseEnabled == false)
 				return true;
 
-			__result = !___active || !WorldRendererUtility.WorldRendered;
+			__result = ___active == false || WorldRendererUtility.WorldRendered == false;
 			return false;
 		}
 	}
@@ -217,6 +218,42 @@ namespace NoPauseChallenge
 		}
 	}
 
+	[HarmonyPatch(typeof(TilePicker), nameof(TilePicker.StartTargeting))]
+	class TilePicker_StartTargeting_Patch
+	{
+		public static void Postfix(TilePicker __instance)
+		{
+			Main.isPlacingGravship = __instance.forGravship;
+		}
+	}
+
+	[HarmonyPatch(typeof(TilePicker), nameof(TilePicker.StopTargetingInt))]
+	class TilePicker_StopTargetingInt_Patch
+	{
+		public static void Postfix()
+		{
+			Main.isPlacingGravship = false;
+		}
+	}
+
+	[HarmonyPatch(typeof(WorldComponent_GravshipController), nameof(WorldComponent_GravshipController.LandingEnded))]
+	class WorldComponent_GravshipController_LandingEnded_Patch
+	{
+		static void CurTimeSpeedFix(TickManager tm, TimeSpeed timeSpeed)
+		{
+			if (Prefs.PauseOnLoad == false)
+				tm.curTimeSpeed = timeSpeed;
+		}
+
+		public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+		{
+			return Transpilers.MethodReplacer(instructions,
+				AccessTools.PropertySetter(typeof(TickManager), nameof(TickManager.CurTimeSpeed)),
+				SymbolExtensions.GetMethodInfo(() => CurTimeSpeedFix(default, default))
+			);
+		}
+	}
+
 	[HarmonyPatch(typeof(TickManager), nameof(TickManager.CurTimeSpeed), MethodType.Setter)]
 	class TickManager_CurTimeSpeed_Setter_Patch
 	{
@@ -224,6 +261,8 @@ namespace NoPauseChallenge
 		{
 			if (Main.noPauseEnabled == false)
 				return true;
+			if (Main.isPlacingGravship)
+				return false;
 			return value != TimeSpeed.Paused;
 		}
 	}
@@ -235,7 +274,7 @@ namespace NoPauseChallenge
 		{
 			if (Main.fullPauseActive)
 				return false;
-			return (Main.noPauseEnabled == false);
+			return Main.noPauseEnabled == false;
 		}
 	}
 
@@ -376,19 +415,13 @@ namespace NoPauseChallenge
 	[HarmonyPatch(typeof(TimeSlower), nameof(TimeSlower.SignalForceNormalSpeed))]
 	class TimeSlower_SignalForceNormalSpeed_Patch
 	{
-		public static bool Prefix()
-		{
-			return Main.ModifyGameSpeed();
-		}
+		public static bool Prefix() => Main.ModifyGameSpeed();
 	}
 
 	[HarmonyPatch(typeof(TimeSlower), nameof(TimeSlower.SignalForceNormalSpeedShort))]
 	class TimeSlower_SignalForceNormalSpeedShort_Patch
 	{
-		public static bool Prefix()
-		{
-			return Main.ModifyGameSpeed();
-		}
+		public static bool Prefix() => Main.ModifyGameSpeed();
 	}
 
 	[HarmonyPatch(typeof(LordToil_ExitMapAndEscortCarriers), nameof(LordToil_ExitMapAndEscortCarriers.UpdateTraderDuty))]
@@ -401,19 +434,58 @@ namespace NoPauseChallenge
 		}
 	}
 
+	[HarmonyPatch(typeof(GravshipUtility), nameof(GravshipUtility.PreLaunchConfirmation))]
+	class GravshipUtility_PreLaunchConfirmation_Patch
+	{
+		public static void Prefix(Action launchAction)
+		{
+			if (ModsConfig.OdysseyActive == false) return;
+			WindowStack_Add_Patch.launchAction = launchAction;
+			Find.TickManager.curTimeSpeed = TimeSpeed.Paused;
+		}
+	}
+
+	[HarmonyPatch]
+	class GravshipUtility_Arrive_Patch
+	{
+		static IEnumerable<MethodBase> TargetMethods()
+		{
+			yield return AccessTools.Method(typeof(GravshipUtility), nameof(GravshipUtility.ArriveNewMap));
+			yield return AccessTools.Method(typeof(GravshipUtility), nameof(GravshipUtility.ArriveExistingMap));
+		}
+
+		public static void Prefix()
+		{
+			if (ModsConfig.OdysseyActive == false)
+				return;
+			var tm = Find.TickManager;
+			tm?.SetCurTimeSpeed(TimeSpeed.Paused);
+		}
+	}
+
 	[HarmonyPatch(typeof(WindowStack), nameof(WindowStack.Add))]
 	class WindowStack_Add_Patch
 	{
+		public static Action launchAction;
+
 		public static void Postfix(Window window)
 		{
 			if (window.GetType().Name.StartsWith("Dialog_") == false)
 				return;
 
+			if (Current.ProgramState != ProgramState.Playing)
+				return;
+
+			if (ModsConfig.OdysseyActive && window is Dialog_MessageBox msgBox && msgBox.buttonAAction == launchAction)
+			{
+				launchAction = null;
+				return;
+			}
+
 			if (Main.noPauseEnabled && Find.Maps != null)
 			{
 				var tm = Find.TickManager;
-				if (tm != null)
-					tm.CurTimeSpeed = TimeSpeed.Normal;
+				tm?.SetCurTimeSpeed(TimeSpeed.Normal);
 			}
 		}
 	}
@@ -500,7 +572,7 @@ namespace NoPauseChallenge
 			if (Event.current.type == EventType.KeyDown && Defs.Freeze.KeyDownEvent)
 			{
 				Event.current.Use();
-				Main.fullPauseActive = !Main.fullPauseActive;
+				Main.fullPauseActive = Main.fullPauseActive == false;
 			}
 			return Settings.noFreeze == false && Main.fullPauseActive;
 		}
@@ -527,7 +599,7 @@ namespace NoPauseChallenge
 				return;
 			if (Defs.HalfSpeed.KeyDownEvent)
 			{
-				Main.halfSpeedActive = !Main.halfSpeedActive;
+				Main.halfSpeedActive = Main.halfSpeedActive == false;
 				TimeControls.PlaySoundOf(Find.TickManager.CurTimeSpeed);
 			}
 		}
@@ -567,15 +639,9 @@ namespace NoPauseChallenge
 			return Main.noPauseEnabled ? -1 : (int)timeSpeed;
 		}
 
-		public static int ConditionalLoopStart()
-		{
-			return Main.noPauseEnabled ? 1 : 0;
-		}
+		public static int ConditionalLoopStart() => Main.noPauseEnabled ? 1 : 0;
 
-		public static int ConditionalUltaMultiplier()
-		{
-			return Main.noPauseEnabled ? 2 : 1;
-		}
+		public static int ConditionalUltaMultiplier() => Main.noPauseEnabled ? 2 : 1;
 
 		public static bool AllowUltrafastKeybind()
 		{
@@ -646,7 +712,7 @@ namespace NoPauseChallenge
 			if (Main.fullPauseActive)
 				return false;
 
-			if (Main.noPauseEnabled == false)
+			if (Main.noPauseEnabled == false || Find.TickManager.PlayerCanControl == false)
 				return true;
 
 			if (Event.current.type == EventType.KeyDown)
@@ -656,17 +722,17 @@ namespace NoPauseChallenge
 					var tm = Find.TickManager;
 					if (tm.CurTimeSpeed == TimeSpeed.Paused || Main.lastTimeSpeed == TimeSpeed.Paused)
 					{
-						tm.CurTimeSpeed = TimeSpeed.Normal;
+						tm.SetCurTimeSpeed(TimeSpeed.Normal);
 						Main.lastTimeSpeed = TimeSpeed.Normal;
 					}
 					else
 					{
 						if (tm.CurTimeSpeed == TimeSpeed.Normal)
-							tm.CurTimeSpeed = Main.lastTimeSpeed;
+							tm.SetCurTimeSpeed(Main.lastTimeSpeed);
 						else
 						{
 							Main.lastTimeSpeed = tm.CurTimeSpeed;
-							tm.CurTimeSpeed = TimeSpeed.Normal;
+							tm.SetCurTimeSpeed(TimeSpeed.Normal);
 						}
 					}
 
