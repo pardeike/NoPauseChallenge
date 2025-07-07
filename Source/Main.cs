@@ -223,7 +223,8 @@ namespace NoPauseChallenge
 	{
 		public static void Postfix(TilePicker __instance)
 		{
-			Main.isPlacingGravship = __instance.forGravship;
+			if (Main.noPauseEnabled)
+				Main.isPlacingGravship = __instance.forGravship;
 		}
 	}
 
@@ -236,12 +237,41 @@ namespace NoPauseChallenge
 		}
 	}
 
+	[HarmonyPatch(typeof(GravshipUtility), nameof(GravshipUtility.ArriveNewMap))]
+	class GravshipUtility_ArriveNewMap_Patch
+	{
+		static void ExecuteWhenFinished(Action action)
+		{
+			action();
+			Find.CameraDriver.shaker.extendedShakeRequests.Clear();
+		}
+
+		static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+		{
+			return Transpilers.MethodReplacer(instructions,
+				SymbolExtensions.GetMethodInfo(() => LongEventHandler.ExecuteWhenFinished(null)),
+				SymbolExtensions.GetMethodInfo(() => ExecuteWhenFinished(null))
+			);
+		}
+	}
+
 	[HarmonyPatch(typeof(WorldComponent_GravshipController), nameof(WorldComponent_GravshipController.LandingEnded))]
 	class WorldComponent_GravshipController_LandingEnded_Patch
 	{
 		static void CurTimeSpeedFix(TickManager tm, TimeSpeed timeSpeed)
 		{
-			if (Prefs.PauseOnLoad == false)
+			if (Main.noPauseEnabled == false)
+			{
+				tm.CurTimeSpeed = timeSpeed;
+				return;
+			}
+
+			if (Prefs.PauseOnLoad)
+			{
+				Find.CameraDriver.shaker.StopAllShaking();
+				Find.CameraDriver.shaker.extendedShakeRequests.Clear();
+			}
+			else
 				tm.curTimeSpeed = timeSpeed;
 		}
 
@@ -301,8 +331,12 @@ namespace NoPauseChallenge
 				typeof(IncidentWorker_GhoulAttack),
 				typeof(IncidentWorker_GorehulkAssault),
 				typeof(IncidentWorker_Infestation),
+				typeof(IncidentWorker_LavaEmergence),
+				typeof(IncidentWorker_LavaFlow),
 				typeof(IncidentWorker_MechCluster),
 				typeof(IncidentWorker_MeteoriteImpact),
+				typeof(IncidentWorker_Nociosphere),
+				typeof(IncidentWorker_OrbitalDebris),
 				typeof(IncidentWorker_Raid),
 				typeof(IncidentWorker_RaidEnemy),
 				typeof(IncidentWorker_ShamblerAssault),
@@ -318,7 +352,7 @@ namespace NoPauseChallenge
 
 		public static void Prefix(IncidentWorker __instance)
 		{
-			if (Settings.slowOnRaid)
+			if (Main.noPauseEnabled && Settings.slowOnRaid)
 				Main.eventSpeedActive = $"Incident {__instance.GetType().Name}";
 		}
 	}
@@ -328,7 +362,7 @@ namespace NoPauseChallenge
 	{
 		public static void Prefix()
 		{
-			if (Settings.slowOnDamage)
+			if (Main.noPauseEnabled && Settings.slowOnDamage)
 				Main.eventSpeedActive = "Damage";
 		}
 	}
@@ -338,7 +372,7 @@ namespace NoPauseChallenge
 	{
 		public static void Prefix()
 		{
-			if (Settings.slowOnLetter)
+			if (Main.noPauseEnabled && Settings.slowOnLetter)
 				Main.eventSpeedActive = "Letter";
 		}
 	}
@@ -348,7 +382,7 @@ namespace NoPauseChallenge
 	{
 		public static void Prefix()
 		{
-			if (Settings.slowOnCaravan)
+			if (Main.noPauseEnabled && Settings.slowOnCaravan)
 				Main.eventSpeedActive = "Hostile On Map";
 		}
 	}
@@ -358,7 +392,7 @@ namespace NoPauseChallenge
 	{
 		public static void Prefix()
 		{
-			if (Settings.slowOnEnemyApproach)
+			if (Main.noPauseEnabled && Settings.slowOnEnemyApproach)
 				Main.eventSpeedActive = "Enemy Approaching";
 		}
 	}
@@ -368,7 +402,7 @@ namespace NoPauseChallenge
 	{
 		public static void Prefix()
 		{
-			if (Settings.slowOnPrisonBreak)
+			if (Main.noPauseEnabled && Settings.slowOnPrisonBreak)
 				Main.eventSpeedActive = "Prisioner Escaping";
 		}
 	}
@@ -380,7 +414,7 @@ namespace NoPauseChallenge
 	{
 		public static void Prefix()
 		{
-			if (Settings.slowOnPrisonBreak)
+			if (Main.noPauseEnabled && Settings.slowOnPrisonBreak)
 				Main.eventSpeedActive = "Prision Break";
 		}
 	}
@@ -407,7 +441,7 @@ namespace NoPauseChallenge
 	{
 		public static void Prefix()
 		{
-			if (Settings.slowOnDamage)
+			if (Main.noPauseEnabled && Settings.slowOnDamage)
 				Main.eventSpeedActive = "Damage";
 		}
 	}
@@ -439,9 +473,11 @@ namespace NoPauseChallenge
 	{
 		public static void Prefix(Action launchAction)
 		{
-			if (ModsConfig.OdysseyActive == false) return;
-			WindowStack_Add_Patch.launchAction = launchAction;
-			Find.TickManager.curTimeSpeed = TimeSpeed.Paused;
+			if (Main.noPauseEnabled && ModsConfig.OdysseyActive)
+			{
+				WindowStack_Add_Patch.launchAction = launchAction;
+				Find.TickManager.curTimeSpeed = TimeSpeed.Paused;
+			}
 		}
 	}
 
@@ -456,10 +492,11 @@ namespace NoPauseChallenge
 
 		public static void Prefix()
 		{
-			if (ModsConfig.OdysseyActive == false)
-				return;
-			var tm = Find.TickManager;
-			tm?.SetCurTimeSpeed(TimeSpeed.Paused);
+			if (Main.noPauseEnabled && ModsConfig.OdysseyActive)
+			{
+				var tm = Find.TickManager;
+				tm?.SetCurTimeSpeed(TimeSpeed.Paused);
+			}
 		}
 	}
 
@@ -470,6 +507,9 @@ namespace NoPauseChallenge
 
 		public static void Postfix(Window window)
 		{
+			if (Main.noPauseEnabled == false)
+				return;
+
 			if (window.GetType().Name.StartsWith("Dialog_") == false)
 				return;
 
@@ -482,7 +522,7 @@ namespace NoPauseChallenge
 				return;
 			}
 
-			if (Main.noPauseEnabled && Find.Maps != null)
+			if (Find.Maps != null)
 			{
 				var tm = Find.TickManager;
 				tm?.SetCurTimeSpeed(TimeSpeed.Normal);
@@ -610,6 +650,9 @@ namespace NoPauseChallenge
 	{
 		public static bool Prefix(ref bool __result)
 		{
+			if (Main.noPauseEnabled == false)
+				return true;
+
 			// Always block forced normal speed, skip the original method call
 			__result = false;
 			return false;
