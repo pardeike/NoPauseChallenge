@@ -23,6 +23,7 @@ namespace NoPauseChallenge
 
 		public static string eventSpeedActive = null;
 		public static int eventSpeedActiveResetCounter = 0;
+		public static bool cutSceneActive = false;
 
 		public static TimeSpeed lastTimeSpeed = TimeSpeed.Paused;
 		public static Texture2D[] originalSpeedButtonTextures;
@@ -74,7 +75,7 @@ namespace NoPauseChallenge
 
 		public static bool ModifyGameSpeed()
 		{
-			if (noPauseEnabled && eventSpeedActive != null)
+			if (noPauseEnabled && eventSpeedActive != null && cutSceneActive == false)
 			{
 				if (Prefs.DevMode)
 					Log.Warning($"Forcing 1x speed. Reason: {eventSpeedActive}");
@@ -88,6 +89,32 @@ namespace NoPauseChallenge
 			else
 				return true;
 		}
+	}
+
+	[HarmonyPatch(typeof(WorldComponent_GravshipController), nameof(WorldComponent_GravshipController.InitiateTakeoff))]
+	class WorldComponent_GravshipController_InitiateTakeoff_Patch
+	{
+		public static void Prefix()
+		{
+			Main.cutSceneActive = true;
+			Main.lastTimeSpeed = Find.TickManager.CurTimeSpeed;
+		}
+	}
+
+	[HarmonyPatch(typeof(WorldComponent_GravshipController), nameof(WorldComponent_GravshipController.InitiateLanding))]
+	class WorldComponent_GravshipController_InitiateLanding_Patch
+	{
+		public static void Prefix()
+		{
+			Main.cutSceneActive = true;
+			Main.lastTimeSpeed = Find.TickManager.CurTimeSpeed;
+		}
+	}
+
+	[HarmonyPatch(typeof(WorldComponent_GravshipController), nameof(WorldComponent_GravshipController.ResetCutscene))]
+	class WorldComponent_GravshipController_ResetCutscene_Patch
+	{
+		public static void Postfix() => Main.cutSceneActive = false;
 	}
 
 	[HarmonyPatch(typeof(StorytellerUI), nameof(StorytellerUI.DrawStorytellerSelectionInterface))]
@@ -140,6 +167,7 @@ namespace NoPauseChallenge
 			{
 				Main.noPauseEnabled = false;
 				Main.halfSpeedEnabled = false;
+				Main.cutSceneActive = false;
 			}
 		}
 	}
@@ -157,6 +185,7 @@ namespace NoPauseChallenge
 				var tm = Find.TickManager;
 				if (tm.CurTimeSpeed == TimeSpeed.Paused)
 					tm.CurTimeSpeed = TimeSpeed.Normal;
+				Main.cutSceneActive = false;
 			});
 		}
 	}
@@ -176,7 +205,7 @@ namespace NoPauseChallenge
 	{
 		public static bool Prefix(ref bool __result)
 		{
-			if (Main.fullPauseActive)
+			if (Main.fullPauseActive || Main.cutSceneActive)
 			{
 				__result = true;
 				return false;
@@ -195,7 +224,7 @@ namespace NoPauseChallenge
 	{
 		public static bool Prefix(bool ___active, ref bool __result)
 		{
-			if (Main.noPauseEnabled == false)
+			if (Main.noPauseEnabled == false || Main.cutSceneActive)
 				return true;
 
 			__result = !___active || !WorldRendererUtility.WorldRendered;
@@ -222,7 +251,7 @@ namespace NoPauseChallenge
 	{
 		public static bool Prefix(ref TimeSpeed value)
 		{
-			if (Main.noPauseEnabled == false)
+			if (Main.noPauseEnabled == false || Main.cutSceneActive)
 				return true;
 			return value != TimeSpeed.Paused;
 		}
@@ -235,7 +264,7 @@ namespace NoPauseChallenge
 		{
 			if (Main.fullPauseActive)
 				return false;
-			return (Main.noPauseEnabled == false);
+			return (Main.noPauseEnabled == false || Main.cutSceneActive);
 		}
 	}
 
@@ -396,7 +425,7 @@ namespace NoPauseChallenge
 	{
 		public static void Postfix()
 		{
-			if (Main.noPauseEnabled)
+			if (Main.noPauseEnabled && Main.cutSceneActive == false)
 				Main.closeTradeDialog = true;
 		}
 	}
@@ -409,7 +438,7 @@ namespace NoPauseChallenge
 			if (window.GetType().Name.StartsWith("Dialog_") == false)
 				return;
 
-			if (Main.noPauseEnabled && Find.Maps != null)
+			if (Main.noPauseEnabled && Main.cutSceneActive == false && Find.Maps != null)
 			{
 				var tm = Find.TickManager;
 				if (tm != null)
@@ -423,7 +452,7 @@ namespace NoPauseChallenge
 	{
 		public static void Postfix()
 		{
-			if (Main.noPauseEnabled)
+			if (Main.noPauseEnabled && Main.cutSceneActive == false)
 				Main.closeTradeDialog = false;
 		}
 	}
@@ -433,7 +462,7 @@ namespace NoPauseChallenge
 	{
 		public static bool Prefix(Dialog_Trade __instance)
 		{
-			if (Main.noPauseEnabled == false)
+			if (Main.noPauseEnabled == false || Main.cutSceneActive)
 				return true;
 
 			/*var tradable = true;
@@ -549,7 +578,7 @@ namespace NoPauseChallenge
 	{
 		public static Texture2D GetButtonTexture(TimeSpeed timeSpeed, TimeSpeed current, TimeSpeed index)
 		{
-			if (Main.noPauseEnabled == false && Main.halfSpeedEnabled == false)
+			if (Main.cutSceneActive || (Main.noPauseEnabled == false && Main.halfSpeedEnabled == false))
 				return Main.originalSpeedButtonTextures[(int)timeSpeed];
 
 			if (current == index)
@@ -564,17 +593,17 @@ namespace NoPauseChallenge
 
 		public static int GetTimeSpeedVarValue(TimeSpeed timeSpeed)
 		{
-			return Main.noPauseEnabled ? -1 : (int)timeSpeed;
+			return Main.noPauseEnabled && Main.cutSceneActive == false ? -1 : (int)timeSpeed;
 		}
 
 		public static int ConditionalLoopStart()
 		{
-			return Main.noPauseEnabled ? 1 : 0;
+			return Main.noPauseEnabled && Main.cutSceneActive == false ? 1 : 0;
 		}
 
 		public static int ConditionalUltaMultiplier()
 		{
-			return Main.noPauseEnabled ? 2 : 1;
+			return Main.noPauseEnabled && Main.cutSceneActive == false ? 2 : 1;
 		}
 
 		public static bool AllowUltrafastKeybind()
@@ -646,7 +675,7 @@ namespace NoPauseChallenge
 			if (Main.fullPauseActive)
 				return false;
 
-			if (Main.noPauseEnabled == false)
+			if (Main.noPauseEnabled == false || Main.cutSceneActive)
 				return true;
 
 			if (Event.current.type == EventType.KeyDown)
