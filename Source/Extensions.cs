@@ -7,8 +7,11 @@ namespace NoPauseChallenge
 	{
 		public static void SetCurTimeSpeed(this TickManager tm, TimeSpeed value)
 		{
-			if (Main.isPlacingGravship)
+			if (Main.CutSceneMap != Find.CurrentMap)
+			{
+				tm.curTimeSpeed = value;
 				return;
+			}
 			if (value == TimeSpeed.Paused || tm.PlayerCanControl)
 				tm.curTimeSpeed = value;
 		}
