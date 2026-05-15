@@ -162,16 +162,10 @@ namespace NoPauseChallenge
 		}
 	}
 
-	[HarmonyPatch]
-	class TilePicker_StartTargeting_Patch
+	[HarmonyPatch(typeof(TilePicker), nameof(TilePicker.StartTargeting_NewTemp))]
+	class TilePicker_StartTargeting_NewTemp_Patch
 	{
 		static readonly string grafshipMessage = "MessageNoLandingSiteSelected".Translate();
-
-		public static IEnumerable<MethodBase> TargetMethods()
-		{
-			var tp = typeof(TilePicker);
-			return new MethodBase[] { AccessTools.Method(tp, "StartTargeting"), AccessTools.Method(tp, "StartTargeting_NewTemp") }.OfType<MethodBase>();
-		}
 
 		public static void Prefix(ref Action noTileChosen, string noTileChosenMessage)
 		{
