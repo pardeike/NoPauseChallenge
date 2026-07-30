@@ -73,6 +73,52 @@ jobs:
           echo "MOD_VERSION=$MOD_VERSION" >> "$GITHUB_ENV"
           echo "RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"
 
+      - name: Build mod
+        env:
+          RIMWORLD_MOD_DIR: ""
+        run: dotnet build "$MOD_PROJECT" -c Release -p:BuildBridgeTools=false
+
+      - name: Package mod zip
+        run: |
+          set -euo pipefail
+
+          PACKAGE_WORK="$RUNNER_TEMP/mod-package"
+          PACKAGE_ROOT="$PACKAGE_WORK/Mods"
+          PACKAGE_DIR="$PACKAGE_ROOT/$MOD_FILE_NAME"
+          STAGE_DIR="dist/$MOD_FILE_NAME"
+          ARCHIVE_NAME="${MOD_FILE_NAME}.zip"
+
+          rm -rf "$PACKAGE_WORK" dist
+          mkdir -p "$PACKAGE_ROOT" "$STAGE_DIR"
+
+          dotnet build "$MOD_PROJECT" -c Release --no-restore -p:RIMWORLD_MOD_DIR="$PACKAGE_ROOT" -p:BuildBridgeTools=false
+
+          cp -R "$PACKAGE_DIR"/. "$STAGE_DIR"/
+
+          FORBIDDEN_FILES="$(
+            find "$STAGE_DIR" \
+              \( -type d \( -name BridgeTools -o -name Source -o -name obj -o -name bin \) \) -o \
+              \( -type f \( \
+                -name 'RimBridgeServer.Sdk.dll' -o \
+                -name '*BridgeTools*.dll' -o \
+                -name '0Harmony.dll' -o \
+                -name '*.pdb' -o \
+                -name '*.mdb' -o \
+                -name '.DS_Store' \
+              \) \) \
+              -print
+          )"
+          if [[ -n "$FORBIDDEN_FILES" ]]; then
+            echo "Forbidden release content:"
+            echo "$FORBIDDEN_FILES"
+            exit 1
+          fi
+
+          (
+            cd dist
+            zip -qr "$ARCHIVE_NAME" "$(basename "$STAGE_DIR")"
+          )
+
       - name: Create or verify release tag
         run: |
           set -euo pipefail
@@ -95,32 +141,6 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git tag -a "$RELEASE_TAG" -m "Release $RELEASE_TAG"
           git push origin "refs/tags/$RELEASE_TAG"
-
-      - name: Build mod
-        env:
-          RIMWORLD_MOD_DIR: ""
-        run: dotnet build "$MOD_PROJECT" -c Release
-
-      - name: Package mod zip
-        run: |
-          set -euo pipefail
-
-          PACKAGE_ROOT="$RUNNER_TEMP/mod-package"
-          PACKAGE_DIR="$PACKAGE_ROOT/$MOD_FILE_NAME"
-          STAGE_DIR="dist/$MOD_FILE_NAME"
-          ARCHIVE_NAME="${MOD_FILE_NAME}.zip"
-
-          rm -rf "$PACKAGE_ROOT" dist
-          mkdir -p dist "$STAGE_DIR"
-
-          dotnet build "$MOD_PROJECT" -c Release --no-restore -p:RIMWORLD_MOD_DIR="$PACKAGE_ROOT"
-
-          cp -R "$PACKAGE_DIR"/. "$STAGE_DIR"/
-
-          (
-            cd dist
-            zip -qr "$ARCHIVE_NAME" "$(basename "$STAGE_DIR")"
-          )
 
       - name: Create GitHub release if needed
         env:

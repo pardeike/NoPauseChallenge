@@ -680,7 +680,7 @@ namespace NoPauseChallenge
 	{
 		public static Texture2D GetButtonTexture(TimeSpeed timeSpeed, TimeSpeed current, TimeSpeed index)
 		{
-			if (Main.CutSceneMap == Find.CurrentMap || (Main.noPauseEnabled == false && Main.halfSpeedEnabled == false))
+			if ((Main.CutSceneMap != null && Main.CutSceneMap == Find.CurrentMap) || (Main.noPauseEnabled == false && Main.halfSpeedEnabled == false))
 				return Main.originalSpeedButtonTextures[(int)timeSpeed];
 
 			if (current == index)

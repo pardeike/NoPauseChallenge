@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<RootNamespace>NoPauseChallenge</RootNamespace>
+		<AssemblyName>NoPauseChallenge.BridgeTools</AssemblyName>
+		<TargetFramework>net472</TargetFramework>
+		<LangVersion>latest</LangVersion>
+		<PlatformTarget>x64</PlatformTarget>
+		<OutputPath>..\..\artifacts\BridgeTools\NoPauseChallenge\</OutputPath>
+		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+		<TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+		<DebugSymbols>false</DebugSymbols>
+		<DebugType>none</DebugType>
+		<Optimize>true</Optimize>
+		<Version>$(ModVersion)</Version>
+		<AssemblyVersion>$(ModVersion)</AssemblyVersion>
+		<FileVersion>$(ModVersion)</FileVersion>
+		<InformationalVersion>$(ModVersion)</InformationalVersion>
+		<NoPauseChallengeAssemblyPath Condition="'$(NoPauseChallengeAssemblyPath)' == ''">..\..\1.6\Assemblies\NoPauseChallenge.dll</NoPauseChallengeAssemblyPath>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<Reference Include="NoPauseChallenge">
+			<HintPath>$(NoPauseChallengeAssemblyPath)</HintPath>
+			<Private>false</Private>
+		</Reference>
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Krafs.Rimworld.Ref" Version="1.6.4633" />
+		<PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net472" Version="1.0.3" PrivateAssets="all" />
+		<PackageReference Include="RimBridgeServer.Sdk" Version="2.0.0" PrivateAssets="all" ExcludeAssets="runtime" />
+	</ItemGroup>
+</Project>
