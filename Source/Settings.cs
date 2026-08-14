@@ -1,11 +1,14 @@
-﻿using System.Xml.Linq;
-using UnityEngine;
+﻿using UnityEngine;
 using Verse;
 
 namespace NoPauseChallenge
 {
 	public class Settings : ModSettings
 	{
+		public const int StandardFourTimesSpeed = 2;
+		public const int MaximumFourTimesSpeed = 7;
+		public const float UnlimitedTickRate = 150f;
+
 		public static bool slowOnRaid = true;
 		public static bool slowOnCaravan = true;
 		public static bool slowOnLetter = true;
@@ -13,6 +16,7 @@ namespace NoPauseChallenge
 		public static bool slowOnEnemyApproach = false;
 		public static bool slowOnPrisonBreak = true;
 		public static bool noFreeze = false;
+		public static int fourTimesSpeed = StandardFourTimesSpeed;
 
 		static void Headline(Listing_Standard modOptions, string title)
 		{
@@ -26,6 +30,21 @@ namespace NoPauseChallenge
 			Listing_Standard modOptions = new Listing_Standard();
 
 			modOptions.Begin(rect);
+
+			Headline(modOptions, "Game speed");
+			var sliderRect = modOptions.GetRect(32f);
+			fourTimesSpeed = Mathf.RoundToInt(Widgets.HorizontalSlider(
+				sliderRect,
+				NormalizeFourTimesSpeed(fourTimesSpeed),
+				0f,
+				MaximumFourTimesSpeed,
+				true,
+				$"4× button: {FourTimesSpeedLabel}",
+				"3×",
+				"Unlimited",
+				1f));
+			TooltipHandler.TipRegion(sliderRect,
+				"Controls the fourth speed button added by No Pause Challenge. Standard keeps RimWorld's normal extra-fast speed; Unlimited runs at RimWorld's maximum tick rate.");
 
 			Headline(modOptions, "Events that trigger normal speed");
 			modOptions.CheckboxLabeled("Raid", ref slowOnRaid, "Set the game to normal speed when a raid occurs.");
@@ -56,6 +75,47 @@ namespace NoPauseChallenge
 			Scribe_Values.Look(ref slowOnEnemyApproach, "NPC_SlowOnEnemyApproach", false);
 			Scribe_Values.Look(ref slowOnPrisonBreak, "NPC_SlowOnPrisonBreak", true);
 			Scribe_Values.Look(ref noFreeze, "noFreeze", true);
+			Scribe_Values.Look(ref fourTimesSpeed, "fourTimesSpeed", StandardFourTimesSpeed);
+			if (Scribe.mode == LoadSaveMode.PostLoadInit)
+				fourTimesSpeed = NormalizeFourTimesSpeed(fourTimesSpeed);
+		}
+
+		public static string FourTimesSpeedLabel
+		{
+			get
+			{
+				switch (NormalizeFourTimesSpeed(fourTimesSpeed))
+				{
+					case 0: return "Same as 3×";
+					case 1: return "Slightly slower";
+					case 2: return "Standard";
+					case 3: return "1.5× standard";
+					case 4: return "2× standard";
+					case 5: return "4× standard";
+					case 6: return "8× standard";
+					default: return "Unlimited";
+				}
+			}
+		}
+
+		public static float FourTimesTickRate(float standardTickRate, float threeTimesTickRate)
+		{
+			switch (NormalizeFourTimesSpeed(fourTimesSpeed))
+			{
+				case 0: return threeTimesTickRate;
+				case 1: return Mathf.Lerp(standardTickRate, threeTimesTickRate, 0.25f);
+				case 2: return standardTickRate;
+				case 3: return Mathf.Min(UnlimitedTickRate, standardTickRate * 1.5f);
+				case 4: return Mathf.Min(UnlimitedTickRate, standardTickRate * 2f);
+				case 5: return Mathf.Min(UnlimitedTickRate, standardTickRate * 4f);
+				case 6: return Mathf.Min(UnlimitedTickRate, standardTickRate * 8f);
+				default: return UnlimitedTickRate;
+			}
+		}
+
+		static int NormalizeFourTimesSpeed(int value)
+		{
+			return Mathf.Clamp(value, 0, MaximumFourTimesSpeed);
 		}
 	}
 }

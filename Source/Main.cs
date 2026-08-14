@@ -112,6 +112,25 @@ namespace NoPauseChallenge
 			else
 				return true;
 		}
+
+		public static void SetNoPauseEnabled(bool enabled)
+		{
+			if (noPauseEnabled == enabled)
+				return;
+
+			noPauseEnabled = enabled;
+			fullPauseActive = false;
+			closeTradeDialog = false;
+			eventSpeedActive = null;
+			eventSpeedActiveResetCounter = 0;
+
+			if (enabled && Current.ProgramState == ProgramState.Playing)
+			{
+				var tickManager = Find.TickManager;
+				if (tickManager != null && tickManager.curTimeSpeed == TimeSpeed.Paused)
+					tickManager.curTimeSpeed = TimeSpeed.Normal;
+			}
+		}
 	}
 
 	[HarmonyPatch(typeof(GravshipUtility), nameof(GravshipUtility.PreLaunchConfirmation))]
@@ -214,31 +233,45 @@ namespace NoPauseChallenge
 		public static void AddCheckbox(Listing_Standard infoListing, float gap)
 		{
 			infoListing.Gap(gap);
-			infoListing.CheckboxLabeled("No Pause Challenge", ref Main.noPauseEnabled, null);
-			infoListing.CheckboxLabeled("Half Speed enabled", ref Main.halfSpeedEnabled, null);
+			var noPauseEnabled = Main.noPauseEnabled;
+			infoListing.CheckboxLabeled(
+				"No Pause Challenge",
+				ref noPauseEnabled,
+				"Disable all pauses for this game. You can change this later from Storyteller settings.");
+			if (noPauseEnabled != Main.noPauseEnabled)
+				Main.SetNoPauseEnabled(noPauseEnabled);
+
+			infoListing.CheckboxLabeled(
+				"Enable half-speed toggle",
+				ref Main.halfSpeedEnabled,
+				"Enable the Half Speed key binding for this game.");
 			infoListing.Gap(3f);
 
 			Main.halfSpeedActive = false;
+		}
+
+		public static ProgramState AddOptions(ProgramState programState, Listing_Standard infoListing)
+		{
+			AddCheckbox(infoListing, 15f);
+			return programState;
 		}
 
 		public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
 		{
 			var list = instructions.ToList();
 			var m_get_ProgramState = AccessTools.PropertyGetter(typeof(Current), nameof(Current.ProgramState));
-			var m_Listing_Gap = AccessTools.Method(typeof(Listing), nameof(Listing.Gap));
 			var idx = list.FirstIndexOf(instr => instr.Calls(m_get_ProgramState));
-			if (idx < 0 || idx >= list.Count)
+			if (idx < 0 || idx + 1 >= list.Count)
 				Log.Error($"Cannot find Current.get_ProgramState in DrawStorytellerSelectionInterface");
 			else if (list[idx + 1].Branches(out var label) == false)
 				Log.Error($"Cannot find branch in DrawStorytellerSelectionInterface");
-			else if (list[idx + 3].opcode != OpCodes.Ldc_R4)
-				Log.Error($"Cannot find ldc.r4 in DrawStorytellerSelectionInterface");
-			else if (list[idx + 4].Calls(m_Listing_Gap) == false)
-				Log.Error($"Cannot find CALL Listing.Gap in DrawStorytellerSelectionInterface");
 			else
 			{
-				list[idx + 4].opcode = OpCodes.Call;
-				list[idx + 4].operand = SymbolExtensions.GetMethodInfo(() => AddCheckbox(default, 0));
+				list.InsertRange(idx + 1,
+				[
+					CodeInstruction.LoadArgument(4),
+					new CodeInstruction(OpCodes.Call, SymbolExtensions.GetMethodInfo(() => AddOptions(default, default)))
+				]);
 			}
 			return list;
 		}
@@ -284,8 +317,16 @@ namespace NoPauseChallenge
 	[HarmonyPatch(typeof(TickManager), nameof(TickManager.TickRateMultiplier), MethodType.Getter)]
 	class TickManager_TickRateMultiplier_Patch
 	{
-		public static void Postfix(ref float __result)
+		public static void Postfix(TickManager __instance, ref float __result)
 		{
+			if (Main.noPauseEnabled && Main.CutSceneMap == null && __instance.curTimeSpeed == TimeSpeed.Ultrafast)
+			{
+				var threeTimesTickRate = Find.Maps.Count == 0
+					? 18f
+					: __instance.NothingHappeningInGame() ? 12f : 6f;
+				__result = Settings.FourTimesTickRate(__result, threeTimesTickRate);
+			}
+
 			if (Main.halfSpeedActive)
 				__result /= 4f;
 		}

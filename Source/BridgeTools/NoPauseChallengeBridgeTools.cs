@@ -18,12 +18,81 @@ namespace NoPauseChallenge
 			TimeSpeed.Superfast,
 			TimeSpeed.Ultrafast
 		};
-
 		[Tool(
 			"nopausechallenge/get_speed_indicator_state",
 			Description = "Read No Pause Challenge state and classify the exact textures selected for the four visible speed buttons.")]
 		public static object GetSpeedIndicatorState()
 		{
+			return DescribeState();
+		}
+
+		[Tool(
+			"nopausechallenge/open_storyteller_settings",
+			Description = "Open RimWorld's vanilla in-game storyteller settings page for live No Pause Challenge UI validation.")]
+		public static object OpenStorytellerSettings()
+		{
+			if (Current.ProgramState != ProgramState.Playing || Current.Game == null)
+			{
+				return new
+				{
+					success = false,
+					message = "A playable game must be loaded before opening storyteller settings.",
+					programState = Current.ProgramState.ToString()
+				};
+			}
+
+			Find.WindowStack.Add(new Page_SelectStorytellerInGame());
+			return new
+			{
+				success = true,
+				message = "Opened RimWorld's in-game storyteller settings page.",
+				state = DescribeState()
+			};
+		}
+
+		[Tool(
+			"nopausechallenge/set_enabled",
+			Description = "Enable or disable No Pause Challenge for the loaded game through its production state transition, then return the exact state.")]
+		public static object SetEnabled(
+			[ToolParameter(
+				Description = "Whether No Pause Challenge should be enabled for the loaded game.",
+				DefaultValue = true)]
+			bool enabled = true)
+		{
+			if (Current.ProgramState != ProgramState.Playing || Current.Game == null)
+			{
+				return new
+				{
+					success = false,
+					message = "A playable game must be loaded before changing No Pause Challenge.",
+					programState = Current.ProgramState.ToString()
+				};
+			}
+
+			Main.SetNoPauseEnabled(enabled);
+			return DescribeState();
+		}
+
+		[Tool(
+			"nopausechallenge/set_four_times_speed",
+			Description = "Select one configured fourth-speed snap point for live tick-rate validation, then return the exact state.")]
+		public static object SetFourTimesSpeed(
+			[ToolParameter(
+				Description = "Slider option from 0 (same as 3x) through 2 (standard) to 7 (unlimited).",
+				DefaultValue = Settings.StandardFourTimesSpeed)]
+			int option = Settings.StandardFourTimesSpeed)
+		{
+			if (option < 0 || option > Settings.MaximumFourTimesSpeed)
+			{
+				return new
+				{
+					success = false,
+					message = $"Option must be between 0 and {Settings.MaximumFourTimesSpeed}.",
+					option
+				};
+			}
+
+			Settings.fourTimesSpeed = option;
 			return DescribeState();
 		}
 
@@ -180,6 +249,8 @@ namespace NoPauseChallenge
 				noPauseEnabled = Main.noPauseEnabled,
 				halfSpeedEnabled = Main.halfSpeedEnabled,
 				halfSpeedActive = Main.halfSpeedActive,
+				fourTimesSpeedOption = Settings.fourTimesSpeed,
+				fourTimesSpeedLabel = Settings.FourTimesSpeedLabel,
 				fullPauseActive = Main.fullPauseActive,
 				hasCutSceneMap = Main.CutSceneMap != null,
 				currentSpeed = currentSpeed.ToString(),
