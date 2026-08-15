@@ -98,19 +98,24 @@ namespace NoPauseChallenge
 
 		public static bool ModifyGameSpeed()
 		{
-			if (noPauseEnabled && eventSpeedActive != null && CutSceneMap == null)
-			{
-				if (Prefs.DevMode)
-					Log.Warning($"Forcing 1x speed. Reason: {eventSpeedActive}");
-
-				var tm = Find.TickManager;
-				tm.CurTimeSpeed = TimeSpeed.Normal;
-				eventSpeedActive = null;
-				eventSpeedActiveResetCounter = 0;
+			if (eventSpeedActive != null && ForceNormalSpeed(eventSpeedActive))
 				return false;
-			}
-			else
-				return true;
+
+			return true;
+		}
+
+		public static bool ForceNormalSpeed(string reason)
+		{
+			if (noPauseEnabled == false || CutSceneMap != null)
+				return false;
+
+			if (Prefs.DevMode)
+				Log.Warning($"Forcing 1x speed. Reason: {reason}");
+
+			Find.TickManager.CurTimeSpeed = TimeSpeed.Normal;
+			eventSpeedActive = null;
+			eventSpeedActiveResetCounter = 0;
+			return true;
 		}
 
 		public static void SetNoPauseEnabled(bool enabled)
@@ -463,10 +468,14 @@ namespace NoPauseChallenge
 	[HarmonyPatch(typeof(LetterStack), nameof(LetterStack.ReceiveLetter), [typeof(Letter), typeof(string), typeof(int), typeof(bool)])]
 	class LetterStack_ReceiveLetter
 	{
-		public static void Prefix()
+		public static void Prefix(Letter let, int delayTicks)
 		{
-			if (Settings.slowOnLetter)
-				Main.eventSpeedActive = "Letter";
+			if (Settings.slowOnLetter == false || delayTicks > 0 || let.CanShowInLetterStack == false)
+				return;
+			if (let.def.pauseMode == AutomaticPauseMode.Never && let.def.forcedSlowdown == false)
+				return;
+
+			Main.ForceNormalSpeed($"Letter {let.def.defName}");
 		}
 	}
 
