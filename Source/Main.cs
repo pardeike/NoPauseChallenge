@@ -472,10 +472,17 @@ namespace NoPauseChallenge
 		{
 			if (Settings.slowOnLetter == false || delayTicks > 0 || let.CanShowInLetterStack == false)
 				return;
-			if (let.def.pauseMode == AutomaticPauseMode.Never && let.def.forcedSlowdown == false)
-				return;
 
-			Main.ForceNormalSpeed($"Letter {let.def.defName}");
+			var isThreat = let.def.pauseMode == AutomaticPauseMode.MajorThreat
+				|| let.def.pauseMode == AutomaticPauseMode.AnyThreat;
+			if (isThreat)
+			{
+				Main.ForceNormalSpeed($"Letter {let.def.defName}");
+				return;
+			}
+
+			if (let.def.forcedSlowdown)
+				Main.eventSpeedActive = $"Letter {let.def.defName}";
 		}
 	}
 
