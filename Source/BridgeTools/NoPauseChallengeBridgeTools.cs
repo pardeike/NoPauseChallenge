@@ -52,24 +52,26 @@ namespace NoPauseChallenge
 
 		[Tool(
 			"nopausechallenge/set_enabled",
-			Description = "Enable or disable No Pause Challenge for the loaded game through its production state transition, then return the exact state.")]
+			Description = "Enable or disable No Pause Challenge during new-game setup or a loaded game through its production state transition, then return the exact state.")]
 		public static object SetEnabled(
 			[ToolParameter(
-				Description = "Whether No Pause Challenge should be enabled for the loaded game.",
+				Description = "Whether No Pause Challenge should be enabled for the new or loaded game.",
 				DefaultValue = true)]
 			bool enabled = true)
 		{
-			if (Current.ProgramState != ProgramState.Playing || Current.Game == null)
+			if (Current.Game == null || (Current.ProgramState != ProgramState.Playing && Current.ProgramState != ProgramState.Entry))
 			{
 				return new
 				{
 					success = false,
-					message = "A playable game must be loaded before changing No Pause Challenge.",
+					message = "Open new-game setup or load a playable game before changing No Pause Challenge.",
 					programState = Current.ProgramState.ToString()
 				};
 			}
 
 			Main.SetNoPauseEnabled(enabled);
+			if (Current.ProgramState == ProgramState.Entry)
+				return new { success = true, programState = Current.ProgramState.ToString(), Main.noPauseEnabled };
 			return DescribeState();
 		}
 

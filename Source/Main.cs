@@ -588,7 +588,7 @@ namespace NoPauseChallenge
 	{
 		public static void Postfix(Window window)
 		{
-			if (Main.CutSceneMap != null)
+			if (Current.ProgramState != ProgramState.Playing || Main.CutSceneMap != null)
 				return;
 
 			if (window.GetType().Name.StartsWith("Dialog_") == false)

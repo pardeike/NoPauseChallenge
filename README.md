@@ -6,6 +6,12 @@ The pause button is gone, dialogs no longer freeze the game, and you must play i
 
 The challenge can be enabled per game from the storyteller dialog, even on existing saves. If you want RimWorld to feel more urgent, this is the pressure switch.
 
+Build the gameplay DLL and optional RimBridge companion with `./scripts/build-quiet.sh build`.
+For local testing, set `RIMWORLD_MOD_DIR` to the game's Mods directory and run
+`./scripts/build-quiet.sh deploy`. This uses the existing deployment guard,
+checks both installed DLLs, and writes full logs to `artifacts/logs`.
+The companion is test instrumentation and is excluded from player ZIPs.
+
 ----
 
 If you are looking for the Steam Workshop versions:
