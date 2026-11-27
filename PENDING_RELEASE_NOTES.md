@@ -1,1 +1,0 @@
-- Fixed new-game setup getting stuck when No Pause Challenge is enabled and another mod adds a settings dialog, such as Zombieland.

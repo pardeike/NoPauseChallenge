@@ -79,7 +79,7 @@ namespace NoPauseChallenge
 		static Main()
 		{
 			var harmony = new Harmony("net.pardeike.harmony.NoPauseChallenge");
-			harmony.PatchAll();
+			harmony.PatchAll(typeof(Main).Assembly);
 			AddUltraButton();
 			CopyOriginalSpeedButtonTextures();
 

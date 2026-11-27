@@ -7,7 +7,10 @@ import argparse
 import hashlib
 import re
 import subprocess
+import os
+import sys
 from pathlib import Path
+from legacy_payload import check
 
 
 SAFE_MOD_NAME = re.compile(r"^[A-Za-z][A-Za-z0-9]*$")
@@ -107,8 +110,9 @@ def deploy(args: argparse.Namespace) -> None:
         raise DeployError(f"Another deploy already holds {lock}") from exc
     LOCK_DIRECTORY = lock
     try:
+        check_legacy_and_game(args.mods_dir, project, args.mod_name)
         run_inner(
-            resolved,
+            args.mods_dir.absolute(),
             project,
             args.configuration,
             args.platform,
@@ -118,6 +122,23 @@ def deploy(args: argparse.Namespace) -> None:
     finally:
         lock.rmdir()
         LOCK_DIRECTORY = None
+
+
+def check_legacy_and_game(mods_dir: Path, project: Path, mod_name: str) -> None:
+    value = os.environ.get("NPC_LEGACY_MOD_ROOT")
+    if not value:
+        raise DeployError("Set NPC_LEGACY_MOD_ROOT to the published Steam payload")
+    baseline = Path(value).resolve(strict=True)
+    destination = (mods_dir / mod_name).resolve()
+    if baseline == destination or baseline.is_relative_to(destination):
+        raise DeployError("The legacy baseline cannot be inside the deployment destination")
+    check(baseline, mods_dir / mod_name)
+    if mods_dir.resolve().is_relative_to((project.parent.parent / "artifacts").resolve()):
+        return
+    command = ["tasklist", "/FO", "CSV", "/NH"] if sys.platform == "win32" else ["ps", "-axo", "comm="]
+    processes = subprocess.check_output(command, text=True)
+    if any(Path(line.strip().strip('"').split('","')[0]).name.startswith("RimWorld") for line in processes.splitlines()):
+        raise DeployError("RimWorld is running. Refusing deployment without stopping or controlling the game")
 
 
 def parser() -> argparse.ArgumentParser:
@@ -143,10 +164,11 @@ def main() -> int:
     try:
         if args.command == "validate":
             validate_mod_directory(args.mods_dir, args.mod_name)
+            check_legacy_and_game(args.mods_dir, args.project.resolve(strict=True), args.mod_name)
         else:
             deploy(args)
         return 0
-    except (DeployError, OSError) as exc:
+    except (DeployError, OSError, ValueError) as exc:
         print(f"error: {exc}", file=__import__("sys").stderr)
         return 2
 

@@ -245,3 +245,6 @@ ModelManifest.xml
 # FAKE - F# Make
 .fake/
 /Source/AchtungMod.reloaded
+
+# Python helpers
+__pycache__/
